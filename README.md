@@ -103,7 +103,7 @@ ssh -L RB_PORT:127.0.0.1:RB_PORT user@virtuoso_host
 **Step 1 — Set the daemon path** *(once per terminal session, before launching Virtuoso's CIW):*
 
 ```bash
-setenv RB_DAEMON_PATH /home/chenzc_intern25/AMS-IO-Agent_processes_combined/AMS-IO-Agent/src/scripts/ramic_bridge/ramic_bridge_daemon_27.py
+setenv RB_DAEMON_PATH /path/to/io-ring-orchestrator-T28/assets/external_scripts/ramic_bridge/ramic_bridge_daemon_27.py
 ```
 
 **Step 2 — Load the bridge SKILL file** *(inside Virtuoso's CIW):*
