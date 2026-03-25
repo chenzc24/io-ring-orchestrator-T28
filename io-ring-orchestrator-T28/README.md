@@ -57,40 +57,60 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 **Project-level (recommended for team use):**
 ```bash
 # From your project root:
-mkdir -p claude-code-skills/T28
-cp -r io-ring-orchestrator-T28 claude-code-skills/T28/
+mkdir -p .claude/skills
+cp -r io-ring-orchestrator-T28 .claude/skills/
 ```
 
 **User-level (available across all projects):**
 ```bash
-mkdir -p ~/.claude/skills/T28
-cp -r io-ring-orchestrator-T28 ~/.claude/skills/T28/
+mkdir -p ~/.claude/skills
+cp -r io-ring-orchestrator-T28 ~/.claude/skills/
 ```
 
-Claude Code discovers skills by scanning the `claude-code-skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
+Claude Code discovers skills by scanning the `.claude/skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
 
 ### 2. Install Python dependencies
 
+Run this from the skill destination directory after copying:
+
 ```bash
-cd claude-code-skills/T28/io-ring-orchestrator-T28
+# Project-level install:
+cd .claude/skills/io-ring-orchestrator-T28
+pip install -r requirements.txt
+
+# Or, user-level install:
+cd ~/.claude/skills/io-ring-orchestrator-T28
 pip install -r requirements.txt
 ```
 
 ### 3. Configure environment (see [Configuration](#configuration))
 
-### 4. Start the RAMIC bridge in Virtuoso
+### 4. Start the RAMIC Bridge in Virtuoso
 
-Inside Virtuoso's CIW, load the bridge SKILL file:
+#### 4.1 SSH Port Forwarding
+*(Required on code-development machines without direct access to the Virtuoso host)*
+
+```bash
+ssh -L RB_PORT:127.0.0.1:RB_PORT user@virtuoso_host
+```
+
+> `RB_PORT` must match the value set in `.env` (e.g. `65438`) and the port the RAMIC bridge daemon is listening on.
+
+#### 4.2 Set Up the RAMIC Bridge
+
+**Step 1 — Set the daemon path** *(once per terminal session, before launching Virtuoso's CIW):*
+
+```bash
+setenv RB_DAEMON_PATH /home/chenzc_intern25/AMS-IO-Agent_processes_combined/AMS-IO-Agent/src/scripts/ramic_bridge/ramic_bridge_daemon_27.py
+```
+
+**Step 2 — Load the bridge SKILL file** *(inside Virtuoso's CIW):*
 
 ```skill
 load("/path/to/io-ring-orchestrator-T28/assets/external_scripts/ramic_bridge/ramic_bridge.il")
 ```
 
-Or start the Python daemon directly (Python 2.7 compatible):
-
-```bash
-python assets/external_scripts/ramic_bridge/ramic_bridge_daemon_27.py
-```
+> A `t` return value in the CIW confirms successful loading.
 
 The bridge listens on `RB_HOST:RB_PORT` (default `127.0.0.1:65438`).
 
@@ -143,7 +163,7 @@ RB_PORT=65438
 | `CDS_LIB_PATH_28` | Yes | — | Absolute path to `cds.lib` for T28; read by Calibre csh wrappers |
 | `USE_RAMIC_BRIDGE` | Yes | — | Enable RAMIC bridge mode (`true`/`1`/`yes`) |
 | `RB_HOST` | No | `127.0.0.1` | RAMIC bridge host |
-| `RB_PORT` | No | `65432` | RAMIC bridge port |
+| `RB_PORT` | No | `65438` | RAMIC bridge port |
 | `AMS_OUTPUT_ROOT` | No | `./output` | Explicit output root for all generated files |
 | `AMS_IO_AGENT_PATH` | No | — | Workspace root; used to derive output path when `AMS_OUTPUT_ROOT` is not set |
 
@@ -409,7 +429,7 @@ All outputs are written to `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
 **Skill not triggering in Claude Code:**
 - Use explicit phrasing: `Use io-ring-orchestrator-T28 to...`
 - Verify `SKILL.md` exists at `io-ring-orchestrator-T28/SKILL.md`
-- Check the skill directory is inside `claude-code-skills/T28/` or `~/.claude/skills/T28/`
+- Check the skill directory is inside `.claude/skills/` or `~/.claude/skills/`
 
 ---
 

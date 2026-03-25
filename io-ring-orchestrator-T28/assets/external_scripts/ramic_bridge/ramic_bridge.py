@@ -23,7 +23,7 @@ Usage:
     print(result)
     
     # Override host/port if needed
-    result = RBExc('1+2', host='101.6.68.224', port=65432)
+    result = RBExc('1+2', host='101.6.68.224', port=65438)
 
 Dependencies:
     - socket: For TCP communication
@@ -58,7 +58,7 @@ def RBExc(skill: str, host: str = None, port: int = None, timeout: int = 30) -> 
         host (str, optional): The host address of the RAMIC Bridge daemon. 
                              If None, reads from RB_HOST environment variable (default: "127.0.0.1").
         port (int, optional): The port number of the RAMIC Bridge daemon.
-                             If None, reads from RB_PORT environment variable (default: 65432).
+                             If None, reads from RB_PORT environment variable (default: 65438).
         timeout (int): The timeout in seconds for the operation (default: 30).
     
     Returns:
@@ -66,7 +66,7 @@ def RBExc(skill: str, host: str = None, port: int = None, timeout: int = 30) -> 
         
     Example:
         result = RBExc('1+2', timeout=10)  # Uses .env settings automatically
-        result = RBExc('1+2', host='101.6.68.224', port=65432)  # Override settings
+        result = RBExc('1+2', host='101.6.68.224', port=65438)  # Override settings
     """
     # Get host and port from environment variables if not provided
     if host is None:
@@ -74,9 +74,9 @@ def RBExc(skill: str, host: str = None, port: int = None, timeout: int = 30) -> 
     
     if port is None:
         try:
-            port = int(os.getenv("RB_PORT", "65432"))
+            port = int(os.getenv("RB_PORT", "65438"))
         except (ValueError, TypeError):
-            port = 65432
+            port = 65438
     
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -101,11 +101,11 @@ def RBExc(skill: str, host: str = None, port: int = None, timeout: int = 30) -> 
 if __name__ == "__main__":
     print("Testing RAMIC Bridge with automatic .env configuration...")
     print(f"Using host: {os.getenv('RB_HOST', '127.0.0.1')}")
-    print(f"Using port: {os.getenv('RB_PORT', '65432')}")
+    print(f"Using port: {os.getenv('RB_PORT', '65438')}")
     print("-" * 50)
     # Example usage when run as a script
 
-    # results = RBExc('1+2', timeout=10, host='101.6.68.224', port=65432)	# connect to thu-tang (101.6.68.224)
+    # results = RBExc('1+2', timeout=10, host='101.6.68.224', port=65438)	# connect to thu-tang (101.6.68.224)
     # print(f"[1+2] results: {results}\n")
 
     
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     # with open('test_skill_code_to_execute.txt', 'r') as file:
     #     skill_code = file.read()
     # print(skill_code)
-    # results = RBExc(skill_code, timeout=10, host='101.6.68.224', port=65432)	# connect to thu-tang (101.6.68.224)
+    # results = RBExc(skill_code, timeout=10, host='101.6.68.224', port=65438)	# connect to thu-tang (101.6.68.224)
     # print(f"[test_skill_code_to_execute] results: {results}\n")
 
     # results2 = RBExc('''
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     #         y = 200
     #         x + y
     #     )
-    # ''', timeout=30, host='101.6.68.224', port=65432)	# connect to thu-tang (101.6.68.224)
+    # ''', timeout=30, host='101.6.68.224', port=65438)	# connect to thu-tang (101.6.68.224)
     # print(f"[multiple lines] results: {results2}\n")
 
     # try:
