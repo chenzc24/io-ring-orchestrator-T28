@@ -1,0 +1,424 @@
+# io-ring-orchestrator-T28
+
+A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process nodes. Handles the complete workflow from natural-language requirements to verified layout — including JSON construction, Cadence SKILL generation, Virtuoso execution, and DRC/LVS/PEX verification.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Prerequisites](#prerequisites)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+   - [`.env` — Runtime Variables](#env--runtime-variables)
+   - [`env_common.csh` — Calibre / PDK Paths](#env_commoncsh--calibre--pdk-paths)
+5. [File Structure](#file-structure)
+6. [Usage](#usage)
+   - [Via Claude Code (Natural Language)](#via-claude-code-natural-language)
+   - [Via CLI Scripts](#via-cli-scripts)
+7. [Workflow](#workflow)
+8. [Output Files](#output-files)
+9. [Troubleshooting](#troubleshooting)
+10. [Related Documentation](#related-documentation)
+
+---
+
+## Overview
+
+`io-ring-orchestrator-T28` is a self-contained Claude Code skill that automates TSMC 28nm IO Ring design. It bundles all required Python logic, SKILL templates, device data, and Calibre wrapper scripts — no separate package installation is needed.
+
+**What it does:**
+- Parses a natural-language IO Ring specification (signals, placement, dimensions)
+- Classifies signals and maps them to T28 devices (`PDB3AC`, `PDDW16SDGZ`, `PCORNER_G`, etc.)
+- Builds and validates an intent graph JSON
+- Generates Cadence SKILL code for schematic and layout
+- Executes SKILL in Virtuoso via the RAMIC bridge
+- Runs Calibre DRC, LVS, and optionally PEX
+
+---
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Python 3.7+ | Standard library sufficient for validation; full flow needs packages in `requirements.txt` |
+| Cadence Virtuoso | Required for SKILL execution and screenshot capture |
+| RAMIC bridge | Daemon that connects Claude Code to Virtuoso over TCP |
+| Calibre (Mentor/Siemens) | Required for DRC, LVS, PEX — `MGC_HOME` must point to your installation |
+| TSMC 28nm PDK | Layer map, LVS include files, and `cds.lib` are needed for verification |
+| C shell (`csh`) | Calibre wrapper scripts are written in csh |
+
+---
+
+## Installation
+
+### 1. Clone or copy the skill into your Claude Code skills directory
+
+**Project-level (recommended for team use):**
+```bash
+# From your project root:
+mkdir -p claude-code-skills/T28
+cp -r io-ring-orchestrator-T28 claude-code-skills/T28/
+```
+
+**User-level (available across all projects):**
+```bash
+mkdir -p ~/.claude/skills/T28
+cp -r io-ring-orchestrator-T28 ~/.claude/skills/T28/
+```
+
+Claude Code discovers skills by scanning the `claude-code-skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
+
+### 2. Install Python dependencies
+
+```bash
+cd claude-code-skills/T28/io-ring-orchestrator-T28
+pip install -r requirements.txt
+```
+
+### 3. Configure environment (see [Configuration](#configuration))
+
+### 4. Start the RAMIC bridge in Virtuoso
+
+Inside Virtuoso's CIW, load the bridge SKILL file:
+
+```skill
+load("/path/to/io-ring-orchestrator-T28/assets/external_scripts/ramic_bridge/ramic_bridge.il")
+```
+
+Or start the Python daemon directly (Python 2.7 compatible):
+
+```bash
+python assets/external_scripts/ramic_bridge/ramic_bridge_daemon_27.py
+```
+
+The bridge listens on `RB_HOST:RB_PORT` (default `127.0.0.1:65438`).
+
+### 5. Verify the installation
+
+```bash
+python3 scripts/check_virtuoso_connection.py
+```
+
+---
+
+## Configuration
+
+### `.env` — Runtime Variables
+
+Create or edit `.env` in the skill root (`io-ring-orchestrator-T28/.env`). This file is loaded automatically by all CLI scripts.
+
+```env
+# === Required ===
+
+# Path to your T28 cds.lib (used by Calibre strmout/si wrappers)
+CDS_LIB_PATH_28=/absolute/path/to/your/T28/cds.lib
+
+# === Virtuoso / RAMIC bridge ===
+
+# Set to true to route SKILL calls through the RAMIC bridge
+USE_RAMIC_BRIDGE=true
+
+# RAMIC bridge host (usually localhost)
+RB_HOST=127.0.0.1
+
+# RAMIC bridge port (must match the port the bridge is listening on)
+RB_PORT=65438
+
+# === Optional output path controls ===
+
+# 1) Explicit output root — highest priority.
+#    All generated artifacts and reports will be written under this path.
+#AMS_OUTPUT_ROOT=/absolute/path/to/workspace/output
+
+# 2) Workspace root hint — used to derive output path when AMS_OUTPUT_ROOT is not set.
+#    Scripts use ${AMS_IO_AGENT_PATH}/output as the output root.
+#AMS_IO_AGENT_PATH=/absolute/path/to/workspace
+```
+
+**Variable reference:**
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CDS_LIB_PATH_28` | Yes | — | Absolute path to `cds.lib` for T28; read by Calibre csh wrappers |
+| `USE_RAMIC_BRIDGE` | Yes | — | Enable RAMIC bridge mode (`true`/`1`/`yes`) |
+| `RB_HOST` | No | `127.0.0.1` | RAMIC bridge host |
+| `RB_PORT` | No | `65432` | RAMIC bridge port |
+| `AMS_OUTPUT_ROOT` | No | `./output` | Explicit output root for all generated files |
+| `AMS_IO_AGENT_PATH` | No | — | Workspace root; used to derive output path when `AMS_OUTPUT_ROOT` is not set |
+
+**Output path resolution order:**
+1. `AMS_OUTPUT_ROOT` (if set)
+2. `${AMS_IO_AGENT_PATH}/output` (if `AMS_IO_AGENT_PATH` is set)
+3. `$(pwd)/output` (current working directory fallback)
+
+---
+
+### `env_common.csh` — Calibre / PDK Paths
+
+Located at `assets/external_scripts/calibre/env_common.csh`. This file is sourced by all Calibre wrapper scripts (`run_drc.csh`, `run_lvs.csh`, `run_pex.csh`). **Update the following paths to match your site installation before running DRC/LVS/PEX:**
+
+```csh
+# Calibre installation root
+setenv MGC_HOME /home/mentor/calibre/calibre2022/aoj_cal_2022.1_36.16
+
+# T28 PDK layer map (for strmout / XStream GDS export)
+setenv PDK_LAYERMAP_28 /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/tsmcN28.layermap
+
+# LVS include file for 28nm (lists additional source files for Calibre LVS)
+setenv incFILE_28 /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/../Calibre/lvs/source.added
+```
+
+**Variables that need site-specific paths:**
+
+| Variable | Description | Must be set by user |
+|---|---|---|
+| `MGC_HOME` | Calibre installation root | Yes |
+| `PDK_LAYERMAP_28` | T28 PDK layer map file | Yes |
+| `incFILE_28` | T28 LVS include file (`source.added`) | Yes |
+| `CDS_LIB_PATH_28` | T28 `cds.lib` path | Set via `.env` or here |
+
+Variables that are **auto-derived** and do not need manual editing:
+
+| Variable | Value |
+|---|---|
+| `PDK_LAYERMAP_180` | T180 layer map (not used for T28 flow) |
+| `incFILE_180` | T180 LVS include (not used for T28 flow) |
+| `CALIBRE_RULE_FILE_28` | DRC rule file, relative to `calibre/` directory |
+| `LVS_RULE_FILE_28` | LVS rule file, relative to `calibre/` directory |
+| `DRC_RULE_FILE_28` | DRC rule file, relative to `calibre/` directory |
+| `PEX_RUN_DIR` | Output directory for PEX runs |
+| `DRC_RUN_DIR` | Output directory for DRC runs |
+| `LVS_RUN_DIR` | Output directory for LVS runs |
+
+---
+
+## File Structure
+
+```text
+io-ring-orchestrator-T28/
+│
+├── .env                              # Runtime configuration (copy and edit this)
+├── requirements.txt                  # Python dependencies
+├── SKILL.md                          # Skill behavior contract and step-by-step workflow
+├── README.md                         # This file
+│
+├── scripts/                          # CLI entry points
+│   ├── validate_intent.py            # Validate intent graph JSON
+│   ├── build_confirmed_config.py     # Convert intent JSON → confirmed config JSON
+│   ├── generate_schematic.py         # Generate schematic SKILL (.il)
+│   ├── generate_layout.py            # Generate layout SKILL (.il)
+│   ├── check_virtuoso_connection.py  # Test RAMIC bridge / Virtuoso connectivity
+│   ├── run_il_with_screenshot.py     # Execute SKILL in Virtuoso and capture screenshot
+│   ├── run_drc.py                    # Run Calibre DRC
+│   ├── run_lvs.py                    # Run Calibre LVS
+│   ├── run_pex.py                    # Run Calibre PEX
+│   └── README.md                     # Script-level argument reference
+│
+├── assets/
+│   ├── core/                         # Core Python logic
+│   │   ├── intent_graph/             # Intent graph schema and JSON validator
+│   │   ├── layout/                   # Layout generation, device placement, SKILL codegen
+│   │   │   ├── config/
+│   │   │   │   └── lydevices_28.json # T28 layout device configuration
+│   │   │   ├── layout_generator.py
+│   │   │   ├── skill_generator.py
+│   │   │   ├── confirmed_config_builder.py
+│   │   │   └── ...
+│   │   └── schematic/                # Schematic generation
+│   │       └── schematic_generator_T28.py
+│   │
+│   ├── utils/                        # Bridge utilities and visualization helpers
+│   │   ├── bridge_utils.py           # RAMIC bridge communication helpers
+│   │   └── visualization.py          # Layout visualization utilities
+│   │
+│   ├── skill_code/                   # Cadence SKILL (.il) template files
+│   │   ├── create_io_ring_lib_full.il
+│   │   ├── create_schematic_cv.il
+│   │   ├── helper_based_device_T28.il
+│   │   ├── screenshot.il
+│   │   └── get_cellview_info.il
+│   │
+│   ├── device_info/                  # T28 device data and pin rules
+│   │   ├── IO_device_info_T28.json   # Device specifications
+│   │   ├── IO_device_info_T28.txt    # Human-readable device reference
+│   │   └── IO_device_pin_rules_T28.json
+│   │
+│   └── external_scripts/
+│       ├── calibre/                  # Calibre DRC/LVS/PEX csh wrappers
+│       │   ├── env_common.csh        # Shared environment (edit PDK paths here)
+│       │   ├── run_drc.csh
+│       │   ├── run_lvs.csh
+│       │   ├── run_pex.csh
+│       │   └── T28/                  # T28-specific rule files
+│       │       ├── _drc_rule_T28_cell_
+│       │       ├── _calibre_T28.lvs_
+│       │       ├── _calibre_T28.rcx_
+│       │       └── si_T28.env
+│       └── ramic_bridge/             # RAMIC bridge for Virtuoso communication
+│           ├── ramic_bridge.il       # SKILL side of the bridge (load in Virtuoso CIW)
+│           ├── ramic_bridge.py       # Python side of the bridge
+│           ├── ramic_bridge_daemon_27.py  # Python 2.7-compatible daemon
+│           └── README.md             # Bridge setup and protocol details
+│
+└── references/                       # Technology and flow references
+    ├── T28_Technology.md             # T28 device and process reference
+    ├── enrichment_rules_T28.md       # Intent graph enrichment rules
+    ├── draft_builder_T28.md          # Draft JSON construction reference
+    ├── wizard_T28.md                 # Wizard interaction guide
+    └── image_vision_instruction.md   # Screenshot interpretation guide
+```
+
+---
+
+## Usage
+
+### Via Claude Code (Natural Language)
+
+Once the skill is installed, trigger it with a natural-language request in Claude Code:
+
+```
+Generate T28 IO ring with signals: VCM, CLKP, VDDIB, VSSIB, DA0, RST.
+Clockwise placement, dimensions: top=2, bottom=2, left=2, right=2.
+```
+
+The skill handles all steps automatically. You can also explicitly invoke it:
+
+```
+Use io-ring-orchestrator-T28 to generate an IO ring with signals VCM, DA0, VDDIB, VSSIB.
+```
+
+### Via CLI Scripts
+
+Scripts can be run independently for each pipeline step. Set the scripts path first:
+
+```bash
+export SCRIPTS_PATH="$(pwd)/scripts"
+```
+
+**Step-by-step example:**
+
+```bash
+# 1. Validate an intent graph JSON
+python3 $SCRIPTS_PATH/validate_intent.py io_ring_intent_graph.json
+
+# 2. Build confirmed configuration
+python3 $SCRIPTS_PATH/build_confirmed_config.py intent.json confirmed.json T28 --skip-editor
+
+# 3. Generate schematic SKILL code
+python3 $SCRIPTS_PATH/generate_schematic.py confirmed.json schematic.il T28
+
+# 4. Generate layout SKILL code
+python3 $SCRIPTS_PATH/generate_layout.py confirmed.json layout.il T28
+
+# 5. Check Virtuoso is reachable
+python3 $SCRIPTS_PATH/check_virtuoso_connection.py
+
+# 6. Execute SKILL and capture screenshot
+python3 $SCRIPTS_PATH/run_il_with_screenshot.py layout.il MyLib MyCell screenshot.png layout
+
+# 7. Run DRC
+python3 $SCRIPTS_PATH/run_drc.py MyLib MyCell layout T28
+
+# 8. Run LVS
+python3 $SCRIPTS_PATH/run_lvs.py MyLib MyCell layout T28
+
+# 9. Run PEX (optional)
+python3 $SCRIPTS_PATH/run_pex.py MyLib MyCell layout
+```
+
+**Script exit codes:**
+
+| Code | Meaning |
+|---|---|
+| 0 | Success / Pass |
+| 1 | Failure / Verification fail |
+| 2 | Setup error / File not found |
+
+---
+
+## Workflow
+
+```
+User Request
+     │
+     ▼
+1. Parse input → create output directory
+2. Build draft intent graph JSON (structural)
+3. Enrich draft → final intent graph
+4. Validate intent graph (validate_intent.py)
+5. Build confirmed config (build_confirmed_config.py)
+6. Generate schematic SKILL (generate_schematic.py)
+7. Generate layout SKILL (generate_layout.py)
+8. Check Virtuoso connection (check_virtuoso_connection.py)
+9. Execute SKILL in Virtuoso + screenshot (run_il_with_screenshot.py)
+10. Run DRC (run_drc.py)
+11. Run LVS (run_lvs.py)
+12. [Optional] Run PEX (run_pex.py)
+     │
+     ▼
+Output files in output/generated/<timestamp>/
+```
+
+**T28 device types used:**
+
+| Signal Type | Device |
+|---|---|
+| Analog IO | `PDB3AC` |
+| Digital IO | `PDDW16SDGZ` |
+| General corner | `PCORNER_G` |
+| Analog corner | `PCORNERA_G` |
+
+---
+
+## Output Files
+
+All outputs are written to `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
+
+| File | Description |
+|---|---|
+| `io_ring_intent_graph.json` | User intent specification (structured input) |
+| `io_ring_confirmed.json` | Validated and enriched configuration |
+| `io_ring_schematic.il` | Cadence SKILL code for schematic |
+| `io_ring_layout.il` | Cadence SKILL code for layout |
+| `schematic_screenshot.png` | Schematic view captured from Virtuoso |
+| `layout_screenshot.png` | Layout view captured from Virtuoso |
+| `drc_report.txt` | Calibre DRC results |
+| `lvs_report.txt` | Calibre LVS results |
+| `pex_report.txt` | Calibre PEX results (if run) |
+
+---
+
+## Troubleshooting
+
+**Virtuoso connection fails:**
+- Confirm Virtuoso is running: `ps aux | grep virtuoso`
+- Confirm RAMIC bridge is loaded in Virtuoso CIW
+- Verify `USE_RAMIC_BRIDGE`, `RB_HOST`, and `RB_PORT` in `.env`
+- Test directly: `python3 scripts/check_virtuoso_connection.py`
+
+**DRC/LVS script fails with path errors:**
+- Verify `CDS_LIB_PATH_28` is set in `.env` or your shell environment
+- Verify `MGC_HOME`, `PDK_LAYERMAP_28`, and `incFILE_28` in `env_common.csh`
+- Ensure `csh` is available (`which csh`)
+
+**Outputs written to unexpected location:**
+- Explicitly set `AMS_OUTPUT_ROOT` in `.env`
+- Check the output path resolution order in the [Configuration](#configuration) section
+
+**Skill not triggering in Claude Code:**
+- Use explicit phrasing: `Use io-ring-orchestrator-T28 to...`
+- Verify `SKILL.md` exists at `io-ring-orchestrator-T28/SKILL.md`
+- Check the skill directory is inside `claude-code-skills/T28/` or `~/.claude/skills/T28/`
+
+---
+
+## Related Documentation
+
+| Document | Location | Description |
+|---|---|---|
+| Skill contract | `SKILL.md` | Detailed workflow contract and step definitions |
+| Script reference | `scripts/README.md` | CLI argument reference for all scripts |
+| RAMIC bridge guide | `assets/external_scripts/ramic_bridge/README.md` | Bridge setup, protocol, and troubleshooting |
+| T28 technology reference | `references/T28_Technology.md` | Device specifications and process details |
+| Skills interface spec | `../../SKILL_INTERFACES.md` | Input/output interfaces for all skills |

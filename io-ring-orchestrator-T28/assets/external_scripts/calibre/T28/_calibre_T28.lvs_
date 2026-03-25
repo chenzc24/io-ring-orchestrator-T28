@@ -1,0 +1,39 @@
+#!tvf
+tvf::VERBATIM {
+//
+//  Rule file generated on Thu Jul 31 15:25:28 2025
+//  by Calibre Interactive v2022.1_36.16    Tue Mar 1 14:26:00 PST 2022
+//
+//      *** PLEASE DO NOT MODIFY THIS FILE ***
+//
+//
+
+LAYOUT PATH "@LAYOUT_PATH"
+LAYOUT SYSTEM GDSII
+LAYOUT PRIMARY "@LAYOUT_PRIMARY"
+
+SOURCE PATH "/home/dmanager/shared_lib/TSMC28/calibre_rule/lvs/source.added" "/home/process/tsmc28n/IO/tphn28hpcpgv18_170a/0971001_20180621/tphn28hpcpgv18_110a_spi/TSMCHOME/digital/Back_End/spice/tphn28hpcpgv18_110a/tphn28hpcpgv18.spi" "@NETLIST_PATH"
+SOURCE SYSTEM SPICE
+SOURCE PRIMARY "@NETLIST_PRIMARY"
+
+MASK SVDB DIRECTORY "svdb" QUERY
+
+LVS REPORT "@SUMMARY_REPORT"
+
+LVS POWER NAME "VDD?"
+LVS GROUND NAME "VSS?" "GND?"
+
+LVS REPORT OPTION S
+
+VIRTUAL CONNECT NAME "?"
+
+LVS EXECUTE ERC YES
+
+ERC RESULTS DATABASE "@RESULTS_DB"
+ERC CELL NAME YES CELL SPACE XFORM
+
+DRC ICSTATION YES
+
+}
+
+source "/home/dmanager/shared_lib/TSMC28/calibre_rule/lvs/calibre.lvs"

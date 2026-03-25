@@ -1,0 +1,746 @@
+{
+  "PDB3AC_H_G": {
+    "AIO": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PDB3AC_V_G": {
+    "AIO": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS1AC_H_G": {
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    }
+  },
+  "PVSS1AC_V_G": {
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    }
+  },
+  "PVDD1AC_H_G": {
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    }
+  },
+  "PVDD1AC_V_G": {
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    }
+  },
+  "PVDD3A_H_G": {
+    "TAVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TAVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVDD3A_V_G": {
+    "TAVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TAVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS3A_H_G": {
+    "TAVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TAVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS3A_V_G": {
+    "TAVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TAVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVDD3AC_H_G": {
+    "TACVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVDD3AC_V_G": {
+    "TACVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TACVSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VSSIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS3AC_H_G": {
+    "TACVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS3AC_V_G": {
+    "TACVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "AVSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "TACVDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VDDIB"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PVSS1DGZ_H_G": {
+    "VSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVSS1DGZ_V_G": {
+    "VSS": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVDD1DGZ_H_G": {
+    "VDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVDD1DGZ_V_G": {
+    "VDD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVDD2POC_H_G": {
+    "VDDPST": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVDD2POC_V_G": {
+    "VDDPST": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVSS2DGZ_H_G": {
+    "VSSPST": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PVSS2DGZ_V_G": {
+    "VSSPST": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    }
+  },
+  "PDDW16SDGZ_H_G": {
+    "PAD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    },
+    "REN": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "OEN": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "C": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "I": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  },
+  "PDDW16SDGZ_V_G": {
+    "PAD": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}"
+    },
+    "VSSPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOH"
+    },
+    "VDDPST": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOH"
+    },
+    "VDD": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "VSS": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "POC": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "POC"
+    },
+    "REN": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    },
+    "OEN": {
+      "create_pin": false,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "VIOL"
+    },
+    "C": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "{pad_name}_CORE"
+    },
+    "I": {
+      "create_pin": true,
+      "create_wire": true,
+      "create_label": true,
+      "label_pattern": "GIOL"
+    }
+  }
+} 
