@@ -145,10 +145,10 @@ def validate_config(config: Dict[str, Any]) -> bool:
                 if not position.startswith(('top_left', 'top_right', 'bottom_left', 'bottom_right')):
                     print(f"❌ Error: instance[{i}] {name}'s corner type position format is incorrect")
                     return False
-
+                
                 # Validate corner device name: check for duplicate _G suffix
-                if device.endswith("_G_G"):
-                    print(f"❌ Error: instance[{i}] {name}'s corner device has duplicate _G suffix: '{device}'. Should be '{device[:-2]}' (only one _G suffix allowed)")
+                if device not in ["PCORNER_G", "PCORNERA_G"]:
+                    print(f"❌ Error: instance[{i}] {name}'s corner device name is incorrect: got '{device}', expected 'PCORNER_G' or 'PCORNERA_G'")
                     return False
 
         # Validate direction field (required for digital IO)

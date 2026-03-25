@@ -445,22 +445,6 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
 
     final_components_input = list(all_components_with_fillers)
     
-        # Debug export for frontend template tuning
-    try:
-        debug_output_dir = os.path.dirname(output_file) or "output"
-        debug_json_name = f"{os.path.splitext(os.path.basename(output_file))[0]}_final_components.json"
-        debug_json_path = os.path.join(debug_output_dir, debug_json_name)
-        os.makedirs(debug_output_dir, exist_ok=True)
-        debug_payload = {
-            "ring_config": ring_config,
-            "instances": final_components_input,
-        }
-        with open(debug_json_path, 'w', encoding='utf-8') as f:
-            json.dump(debug_payload, f, ensure_ascii=False, indent=2)
-        print(f"🧪 Debug final_components JSON generated: {debug_json_path}")
-    except Exception as e:
-        print(f"⚠️  Debug final_components JSON generation failed: {e}")
-
     final_components = generator.convert_relative_to_absolute(chip_width, chip_height, final_components_input, ring_config)
     outer_pads = [comp for comp in final_components if comp.get("type") == "pad"]
     corners = [comp for comp in final_components if comp.get("type") == "corner"]

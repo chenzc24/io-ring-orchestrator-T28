@@ -76,6 +76,14 @@ Required inputs:
 When user says inner pad is between signal A and B, resolve by actual pad positions, not name lookup.
 The same name may appear multiple times.
 
+## Duplicate Signal Rule
+
+When duplicate signals (same signal name appearing multiple times) are encountered:
+- DO NOT delete or remove duplicates
+- Preserve all instances of duplicate signals exactly as provided
+- Each duplicate occurrence is a valid, separate signal instance
+- The draft must contain the exact same number of signal instances as the input signal list
+
 ## Inner-Pad Insertion Resolution Rules
 
 ### Position-First Resolution
