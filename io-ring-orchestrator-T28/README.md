@@ -15,6 +15,8 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 5. [File Structure](#file-structure)
 6. [Usage](#usage)
    - [Via Claude Code (Natural Language)](#via-claude-code-natural-language)
+   - [Writing Effective Prompts](#writing-effective-prompts)
+   - [Running the Built-in Wirebonding Test Cases](#running-the-built-in-wirebonding-test-cases)
    - [Via CLI Scripts](#via-cli-scripts)
 7. [Workflow](#workflow)
 8. [Output Files](#output-files)
@@ -281,12 +283,23 @@ io-ring-orchestrator-T28/
 │           ├── ramic_bridge_daemon_27.py  # Python 2.7-compatible daemon
 │           └── README.md             # Bridge setup and protocol details
 │
-└── references/                       # Technology and flow references
-    ├── T28_Technology.md             # T28 device and process reference
-    ├── enrichment_rules_T28.md       # Intent graph enrichment rules
-    ├── draft_builder_T28.md          # Draft JSON construction reference
-    ├── wizard_T28.md                 # Wizard interaction guide
-    └── image_vision_instruction.md   # Screenshot interpretation guide
+├── references/                       # Technology and flow references
+│   ├── T28_Technology.md             # T28 device and process reference
+│   ├── enrichment_rules_T28.md       # Intent graph enrichment rules
+│   ├── draft_builder_T28.md          # Draft JSON construction reference
+│   ├── wizard_T28.md                 # Wizard interaction guide
+│   └── image_vision_instruction.md   # Screenshot interpretation guide
+│
+└── 28nm_wirebonding/                 # Built-in wirebonding test cases
+    ├── IO_28nm_<name>.txt            # Ready-made prompt files (paste into Claude Code)
+    └── golden_output/
+        └── IO_28nm_<name>/           # Reference outputs per test case
+            ├── io_ring_intent_graph.json
+            ├── io_ring_layout.il
+            ├── io_ring_schematic.il
+            ├── io_ring_layout_visualization.png
+            ├── layout_screenshot.png
+            └── schematic_screenshot.png
 ```
 
 ---
@@ -307,6 +320,122 @@ The skill handles all steps automatically. You can also explicitly invoke it:
 ```
 Use io-ring-orchestrator-T28 to generate an IO ring with signals VCM, DA0, VDDIB, VSSIB.
 ```
+
+---
+
+### Writing Effective Prompts
+
+The skill uses a rule-based enrichment engine to classify signals, select devices, and configure pin connections. Most decisions are driven by **signal names** and **voltage domain assignments**. Understanding these rules lets you write a prompt that produces the correct design on the first attempt.
+
+#### How the skill classifies signals
+
+| Signal type | How it's detected | Device assigned |
+|---|---|---|
+| Analog IO | Appears in a user-specified **analog voltage domain**, or name matches analog patterns (VCM, CLKP, VREF…) | `PDB3AC` |
+| Analog power/ground provider | First VDD/VSS signal in a voltage domain range | `PVDD3AC` / `PVSS3AC` |
+| Analog power/ground consumer | All other VDD/VSS signals in the same domain | `PVDD1AC` / `PVSS1AC` |
+| Digital IO | Contiguous block of non-power signals not in any analog domain | `PDDW16SDGZ` |
+| Digital power/ground | Exactly **4 unique signal names** forming the digital domain | `PVDD1DGZ` / `PVSS1DGZ` / `PVDD2POC` / `PVSS2DGZ` |
+| Corner | Inferred from adjacent pad types | `PCORNER_G` (digital) or `PCORNERA_G` (analog/mixed) |
+
+**Key implication**: if you have signals whose names look digital (e.g. `DVDD`, `GIOL`) but belong to an analog domain, you must state the domain explicitly — otherwise the skill may classify them as digital power.
+
+#### What to include in your prompt
+
+**Required for every design:**
+
+- **Signal list** — all signal names in placement order
+- **Pads per side** — number of pads on each edge (e.g. `3 pads per side`, or `top=4, bottom=4, left=2, right=2`)
+- **Ring type** — `single ring` or `double ring`
+- **Placement order** — `clockwise` or `counterclockwise` (default: counterclockwise)
+- **Library and cell name** — Virtuoso target (e.g. `Library: LLM_Layout_Design, Cell: IO_RING_test`)
+
+**Strongly recommended to avoid misclassification:**
+
+- **Explicitly label signal types** — identify which signals are analog IO, analog power/ground, digital IO, and digital power/ground. Without this, the skill infers from name patterns, which may not match your naming convention.
+- **Voltage domain assignment** — state which signals form each domain and which are the providers (VDD/VSS pair). This is the highest-priority input and overrides all name-based inference.
+- **Digital domain names** — if your digital domain uses non-default names (i.e. not `VIOL/GIOL/VIOH/GIOH`), always specify them explicitly.
+- **Signal direction** — for digital IO, specify `input` or `output` per signal if the name is ambiguous.
+
+#### Minimal prompt
+
+```
+Generate T28 IO ring.
+Signals: VIN VSSIB VDDIB VCM D1 D2 D3 D4 VIOL GIOL VIOH GIOH
+4 pads per side, single ring, clockwise.
+Library: LLM_Layout_Design, Cell: IO_RING_test.
+```
+
+> The skill will infer signal types and voltage domains automatically. Results are usually correct for standard naming conventions.
+
+#### Full prompt (recommended)
+
+```
+Task: Generate IO ring schematic and layout for Cadence Virtuoso.
+
+Design requirements:
+4 pads per side. Single ring. Counterclockwise placement through left, bottom, right, top.
+
+Signal names: VIN VSSIB VDDIB VCM D1 D2 D3 D4 VIOL GIOL VIOH GIOH
+
+Signal classification:
+- Analog IO: VIN, VCM
+- Analog power/ground: VDDIB (VDD provider), VSSIB (VSS provider)
+- Digital IO: D1, D2, D3, D4 (outputs)
+- Digital power/ground: VIOL (low VDD), GIOL (low VSS), VIOH (high VDD), GIOH (high VSS)
+
+Voltage domain:
+- Analog domain: VDDIB/VSSIB (providers); VIN, VCM connect to this domain
+
+Technology: 28nm process node
+Library: LLM_Layout_Design
+Cell name: IO_RING_4x4_single_ring_mixed
+View: schematic and layout
+```
+
+> Explicit signal classification and voltage domain assignment guarantees the correct device selection and pin connections, especially when your signal names deviate from standard patterns.
+
+---
+
+### Running the Built-in Wirebonding Test Cases
+
+The `28nm_wirebonding/` directory contains **30 ready-made test cases** covering a range of die sizes, ring types, and signal configurations. Use them to verify your installation or explore what the skill can do.
+
+```
+28nm_wirebonding/
+├── IO_28nm_<name>.txt        ← prompt files (copy and paste directly into Claude Code)
+└── golden_output/
+    └── IO_28nm_<name>/       ← reference outputs (intent graph, layout .il, screenshots)
+```
+
+**To run a test case**, copy the contents of any `.txt` file and paste it as your prompt in Claude Code:
+
+```bash
+cat 28nm_wirebonding/IO_28nm_3x3_single_ring_mixed.txt
+```
+
+Then paste the output into Claude Code. The skill will run the full pipeline and produce schematic + layout.
+
+**Available test cases:**
+
+| Case | Die size | Ring | Signal mix |
+|---|---|---|---|
+| `IO_28nm_3x3_single_ring_analog` | 3×3 | Single | Analog only |
+| `IO_28nm_3x3_single_ring_digital` | 3×3 | Single | Digital only |
+| `IO_28nm_3x3_single_ring_mixed` | 3×3 | Single | Mixed analog+digital |
+| `IO_28nm_4x4_single_ring_*` | 4×4 | Single | Analog / Digital / Mixed |
+| `IO_28nm_5x5_single_ring_*` | 5×5 | Single | Analog / Digital / Mixed |
+| `IO_28nm_6x6_single_ring_*` | 6×6 | Single | Analog / Digital |
+| `IO_28nm_7x7_single_ring_*` | 7×7 | Single | Analog / Digital |
+| `IO_28nm_8x8_double_ring_*` | 8×8 | Double | Analog / Digital / Mixed / Multi-voltage |
+| `IO_28nm_10x6_single_ring_mixed_*` | 10×6 | Single | Mixed (2 variants) |
+| `IO_28nm_10x10_double_ring_multi_voltage_domain` | 10×10 | Double | Multi-voltage |
+| `IO_28nm_12x12_*` | 12×12 | Single/Double | Mixed / Multi-voltage (4 variants) |
+| `IO_28nm_12x18_*` | 12×18 | Double | Mixed / Multi-voltage |
+| `IO_28nm_18x12_single_ring_mixed` | 18×12 | Single | Mixed |
+| `IO_28nm_18x18_*` | 18×18 | Single/Double | Multi-voltage |
+
+Compare your output against `golden_output/<case>/` to verify correctness.
 
 ### Via CLI Scripts
 
