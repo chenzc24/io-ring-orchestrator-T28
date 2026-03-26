@@ -567,7 +567,6 @@ All outputs are written to `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
 | Document | Location | Description |
 |---|---|---|
 | Skill contract | `SKILL.md` | Detailed workflow contract and step definitions |
-| Script reference | `scripts/README.md` | CLI argument reference for all scripts |
 | RAMIC bridge guide | `assets/external_scripts/ramic_bridge/README.md` | Bridge setup, protocol, and troubleshooting |
 | T28 technology reference | `references/T28_Technology.md` | Device specifications and process details |
 | Skills interface spec | `../../SKILL_INTERFACES.md` | Input/output interfaces for all skills |
