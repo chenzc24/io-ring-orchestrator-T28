@@ -77,7 +77,7 @@ Constraint precedence (when no immutable-structure conflict exists):
 ### Step 2: Digital Signals Classification and pin connection
 
 **Global rules for digital signal classification and pin connection:**
-All pin connections for digital signals (both digital IO and digital power/ground) is voltage-domain-based.Accept for VSS,other pin connections (VDD, VDDPST, VSSPST) must connect to the corresponding provider signal names in the same voltage domain. The VSS pin connection for all digital pads must be consistent and use the same signal name (the digital domain ground provider signal name).
+All pin connections for digital signals (both digital IO and digital power/ground) is voltage-domain-based.Except for VSS,other pin connections (VDD, VDDPST, VSSPST) must connect to the corresponding provider signal names in the same voltage domain. The VSS pin connection for all digital pads must be consistent and use the same signal name (the digital domain ground provider signal name).
 
 #### Step 2.1: Digital Domain Continuity and Signal Name Context Classification
 **CRITICAL - Digital Domain Continuity:**
@@ -114,9 +114,6 @@ All pin connections for digital signals (both digital IO and digital power/groun
   - **Exactly ONE high voltage provider pair**: One PVDD2POC (provider) and one PVSS2DGZ (provider)
   - **Total**: The digital domain must have exactly 2 provider pairs (one low voltage + one high voltage)
   - **CRITICAL - Exactly 4 Unique Signal Names**: The digital domain **MUST have exactly 4 different signal names** identified as digital voltage domain providers (one for each role: low VDD, low VSS, high VDD, high VSS). **Multiple instances of the same signal name are allowed** (e.g., multiple GIOL signals all using PVSS1DGZ), but **only 4 unique signal names** can be digital domain providers. Any additional signal names with digital-sounding patterns must be classified as analog signals or digital IO, NOT as digital domain providers
-- **CRITICAL - Exact Count Verification**: The digital domain **MUST have exactly 4 unique signal names** as digital voltage domain providers. **Each signal name can have multiple instances (pads)**, but the total number of unique signal names must be exactly 4. **If you identify more than 4 different signal names as digital domain providers, this is ALWAYS an error**:
-  - **Correct**: Exactly 4 unique signal names (one for each role: low VDD, low VSS, high VDD, high VSS), each can have multiple instances
-  - **Incorrect**: More than 4 unique signal names indicates signal recognition or classification errors
 - **CRITICAL - Provider Signal Selection Rules**:
   - **Selection rule for multiple signals with identical digital domain names**: If multiple signals with the same digital domain provider name appear in the digital signal block, **ALL of them within the digital block MUST use the same digital voltage domain device type**
   - **CRITICAL - Same name in digital block = Same device type**: Within the digital signal block, if multiple signals share the same name and that name is a digital domain provider, they MUST all use the same digital voltage domain device type. Do NOT mix device types (e.g., do NOT use PVSS1AC for one GIOL and PVSS1DGZ for another GIOL if both are in the digital block)
@@ -136,26 +133,26 @@ All pin connections for digital signals (both digital IO and digital power/groun
      - **Only 4 signals should be digital domain power/ground providers** (one low voltage VDD provider, one low voltage VSS provider, one high voltage VDD provider, one high voltage VSS provider)
      - **All other signals with digital-like names that appear in analog voltage domains must use analog device types**
 - **Digital Power/Ground Pin connection**
-**PVSS1DGZ**: VSS + VDD + VSSPST + VDDPST
-  - VSS → own signal name
-  - VDD → low voltage domain power signal name
-  - VSSPST → high voltage ground signal name
-  - VDDPST → high voltage power signal name
-**PVDD1DGZ**: VSS + VDD + VSSPST + VDDPST
-  - VDD → own signal name
-  - VSS → low voltage domain ground signal name
-  - VSSPST → high voltage ground signal name
-  - VDDPST → high voltage power signal name
-**PVDD2POC**: VSS + VDD + VSSPST + VDDPST
-  - VSS → low voltage domain ground signal name
-  - VDD → low voltage domain power signal name
-  - VSSPST → high voltage ground signal name
-  - VDDPST → own signal name
-**PVSS2DGZ**: VSS + VDD + VSSPST + VDDPST
-  - VSS → low voltage domain ground signal name
-  - VDD → low voltage domain power signal name
-  - VSSPST → own signal name
-  - VDDPST → high voltage power signal name
+  - **PVSS1DGZ**: VSS + VDD + VSSPST + VDDPST
+    - VSS → own signal name
+    - VDD → low voltage domain power signal name
+    - VSSPST → high voltage ground signal name
+    - VDDPST → high voltage power signal name
+  - **PVDD1DGZ**: VSS + VDD + VSSPST + VDDPST
+    - VDD → own signal name
+    - VSS → low voltage domain ground signal name
+    - VSSPST → high voltage ground signal name
+    - VDDPST → high voltage power signal name
+  - **PVDD2POC**: VSS + VDD + VSSPST + VDDPST
+    - VSS → low voltage domain ground signal name
+    - VDD → low voltage domain power signal name
+    - VSSPST → high voltage ground signal name
+    - VDDPST → own signal name
+  - **PVSS2DGZ**: VSS + VDD + VSSPST + VDDPST
+    - VSS → low voltage domain ground signal name
+    - VDD → low voltage domain power signal name
+    - VSSPST → own signal name
+    - VDDPST → high voltage power signal name
 
 #### Step 2.3: Digital IO Signals Classification and pin connection
 - **Examples**: SDI, RST, SCK, SLP, SDO, D0-D13, DCLK, SYNC
@@ -199,8 +196,7 @@ All pin connections for digital signals (both digital IO and digital power/groun
 - **CRITICAL - Use Position Index for Signal Identification**: When processing signals, ALWAYS use **position index** (e.g., index 0, 1, 2...) as the unique identifier, NOT signal name. This is essential because:
   - Same signal name may appear at different positions with different voltage domains
   - Same signal name may have different roles (provider vs consumer) at different positions
-  - Pin connections must be determined by position, not by signal name lookup
-- **CRITICAL - Every Signal Must Belong to a Voltage Domain**: Every analog signal (including analog IO and analog power/ground) MUST belong to exactly one voltage domain
+- **CRITICAL - Every Signal(including analog IO and analog power/ground) Must Belong to a Voltage Domain**
 - **CRITICAL - Voltage Domain Continuity**: 
   - **Single block**: Voltage domain signals should ideally form a contiguous block
   - **Multiple blocks allowed**: If a voltage domain has multiple non-contiguous blocks, this is acceptable **ONLY IF each block has its own complete provider pair** (one VDD provider + one VSS provider within that block)
@@ -273,8 +269,8 @@ All pin connections for digital signals (both digital IO and digital power/groun
        - If matches the provider pair → use PVDD3AC/PVSS3AC (or PVDD3A/PVSS3A) as provider (but only one instance, already selected in step 1-2)
        - All other analog power/ground signals → use PVDD1AC/PVSS1AC as consumers
 
-**2. Assign Analog Signals to Their Voltage Domains**
-Based on the analysis above, group analog signals into their corresponding voltage domains.
+**2. CRITICAL: Assign Analog Signals to Their Voltage Domains**
+Based on the analysis above, group analog signals into their corresponding voltage domains.Every signal must belong to a voltage domain.
 
 Example:
 - Signal list: `VREFN VREFM VREFH VSSSAR VDDSAR VDDCLK VSSCLK VCM VDD_DAT GND_DAT`
@@ -366,7 +362,6 @@ All pin connections for digital signals (both digital IO and digital power/groun
 **Corner Selection Principle:**
 - **CRITICAL - Corner type selection is MANDATORY and cannot be skipped**
 - **MUST analyze adjacent pad device types** for each corner individually - this step is required for every corner
-- **Incorrect corner type causes design failure** - corner type errors will cause the design to fail
 - **Corner analysis must be performed BEFORE generating the intent graph JSON** - do not proceed without corner type determination
 
 **Corner Analysis Process (MANDATORY - Must be performed for all 4 corners):**
@@ -440,8 +435,6 @@ All pin connections for digital signals (both digital IO and digital power/groun
 - **Signal name determination**:
   - If user specifies digital domain provider names, use the user-specified low voltage VSS signal name (e.g., "IOVSS" if user specifies "VSS/IOVSS/IOVDDL/IOVDDH")
   - If user does not specify, use the default digital low voltage VSS signal name (e.g., "GIOL")
-- **Do NOT mix different signal names** for VSS pin_connection across different pads - this will cause connectivity errors
-
 #### Analog IO (PDB3AC)
 **Regular signal (no `<>`):**
 ```json

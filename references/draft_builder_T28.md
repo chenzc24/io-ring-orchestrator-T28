@@ -89,7 +89,7 @@ Input precedence for draft build:
 When user says inner pad is between signal A and B, resolve by actual pad positions, not name lookup.
 The same name may appear multiple times.
 
-## Duplicate Signal Rule
+## **CRITICAL** Duplicate Signal Rule
 
 When duplicate signals (same signal name appearing multiple times) are encountered:
 - DO NOT delete or remove duplicates
@@ -245,6 +245,7 @@ Phase 2 MUST treat the following fields as immutable unless reporting hard input
 - confirm `placement_order` is `clockwise` or `counterclockwise`
 - if provided, confirm `starting_side` is `top/right/bottom/left`
 - parse outer signal list first and verify outer count equals `2 * width + 2 * height`
+  **CRITICAL: If the counts are not equal, check whether any signals were omitted (especially for the signals with duplicate names) and re-read the signal list in the user primary prompt. If the missing signals still cannot be identified, ask the user. Do not add fillers or any other signals subjectively.**
 - parse inner-pad insertion requests into ordered tuples: `(inner_name, endpoint_a, endpoint_b)`
 - reject malformed insertion statements instead of guessing
 
