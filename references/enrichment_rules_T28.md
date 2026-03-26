@@ -57,7 +57,7 @@
 ### Step 2: Digital Signals Classification and pin connection
 
 **Global rules for digital signal classification and pin connection:**
-All pin connections for digital signals (both digital IO and digital power/ground) is voltage-domain-based.
+All pin connections for digital signals (both digital IO and digital power/ground) is voltage-domain-based.Accept for VSS,other pin connections (VDD, VDDPST, VSSPST) must connect to the corresponding provider signal names in the same voltage domain. The VSS pin connection for all digital pads must be consistent and use the same signal name (the digital domain ground provider signal name).
 
 #### Step 2.1: Digital Domain Continuity and Signal Name Context Classification
 **CRITICAL - Digital Domain Continuity:**
@@ -262,8 +262,8 @@ Example:
 - Analog domain 1 (providers: `GND_DAT`, `VDD_DAT`): `VSSSAR VDDSAR VDDCLK VSSCLK VCM GND_DAT VDD_DAT`
 
 #### Step 3.2: Analog Power/Ground Signals Device Type Selection and Pin Connection
-**Global rules for digital signal classification and pin connection:**
-All pin connections for digital signals (both digital IO and digital power/ground) is voltage-domain-based.
+**Global rules for analog signal classification and pin connection:**
+All pin connections for analog signals (both analog IO and analog power/ground) is voltage-domain-based.Accept for VSS and AIO,other pin connections (TACVDD/TACVSS or TAVDD/TAVSS) must connect to the corresponding provider signal names in the same voltage domain. The VSS pin connection for all analog pads must be consistent and use the same signal name (the digital domain ground signal name).
 **Device Type Selection Summary:**
 - **Provider** (selected as voltage domain provider): 
   - **If user explicitly specifies PVDD3A/PVSS3A**: Use `PVDD3A`/`PVSS3A`
@@ -332,7 +332,11 @@ All pin connections for digital signals (both digital IO and digital power/groun
 - **TACVSS/TACVDD pin connection(Based on voltage domain)**: 
   - TACVSS → VSS provider signal name in the same voltage domain,
   - TACVDD → VDD provider signal name in the same voltage domain
-- **VSS pin connection**: Connect to digital domain ground signal name (or default "GIOL")
+- **CRITICAL - VSS pin connection:** 
+  - VSS → digital domain ground signal name (or default "GIOL")
+
+**CRITICAL - Check analog IO and analog power/ground pin connections:**
+- if the pins (accept for VSS and AIO) are connected to the correct provider signals in the same voltage domain
 
 ### Step 3.4: Corner Devices Classification
 - **PCORNER_G**: Digital corner (both adjacent pads are digital)
@@ -571,10 +575,11 @@ All pin connections for digital signals (both digital IO and digital power/groun
 
 ### Device & Configuration
 - [ ] Device types correctly selected (voltage domain judgment accurate)
+- [ ] Corner types correctly determined based on adjacent pads
 - [ ] **CRITICAL: Provider signals use power/ground device types (PVDD3AC/PVSS3AC or PVDD3A/PVSS3A), NOT IO device types (PDB3AC)**, even if signal name suggests IO (e.g., VREFP1, VREFN1)
 - [ ] Device suffixes correct (_H_G for left/right, _V_G for top/bottom)
 - [ ] All required pins configured per device type
-- [ ] TACVSS/TACVDD configured for all analog devices
+- [ ] TACVSS/TACVDD configured for all analog devices, and all VSS pins connect to the same digital domain low voltage VSS signal name (user-specified or default "GIOL")
 - [ ] **Analog IO (PDB3AC) AIO pin connects to `{signal_name}` label** (NOT `{signal_name}_CORE`)
   - Regular signals: `{signal_name}` (e.g., "CLKP" → "CLKP", "VCM" → "VCM")
   - Signals with `<>`: `{signal_name}` (e.g., "IB<0>" → "IB<0>")
