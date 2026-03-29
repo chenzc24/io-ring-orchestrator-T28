@@ -378,8 +378,6 @@ io-ring-orchestrator-T28/
     │
     ├── device_info/                  # Device templates
     │   ├── IO_device_info_T28.json
-    │   ├── IO_device_info_T28.txt
-    │   ├── IO_device_pin_rules_T28.json
     │   └── IO_device_info_T28_parser.py
     │
     └── external_scripts/             # External executables
