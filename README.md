@@ -261,10 +261,8 @@ io-ring-orchestrator-T28/
 │   │   ├── screenshot.il
 │   │   └── get_cellview_info.il
 │   │
-│   ├── device_info/                  # T28 device data and pin rules
-│   │   ├── IO_device_info_T28.json   # Device specifications
-│   │   ├── IO_device_info_T28.txt    # Human-readable device reference
-│   │   └── IO_device_pin_rules_T28.json
+│   ├── device_info/                  # T28 device data (templates + pin_rules)
+│   │   └── IO_device_info_T28.json   # Device specifications and embedded pin_rules
 │   │
 │   └── external_scripts/
 │       ├── calibre/                  # Calibre DRC/LVS/PEX csh wrappers
