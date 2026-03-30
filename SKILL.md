@@ -296,12 +296,17 @@ Provide structured summary:
 - [ ] Step 11: LVS completed
 - [ ] Step 12: Final report delivered
 
+## .il Script Debugging
+
+When a generated `.il` script fails during Step 9 execution, read `references/skill_language_reference.md` for SKILL language syntax, Virtuoso API, and common runtime errors before attempting fixes. Typical issues: nil cellview, wrong layer-purpose pairs, unbound variables, mismatched parentheses in prefix notation.
+
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|---------|
 | Scripts not found | Use Option B (absolute path); verify with `ls $SCRIPTS_PATH/validate_intent.py` |
 | Virtuoso not connected | Start Virtuoso; do NOT retry SKILL execution |
+| .il execution error | Read `references/skill_language_reference.md` for SKILL syntax and common runtime errors; fix the generated `.il` file, then re-run Step 9 |
 | Domain continuity fails | Re-classify signals using ring-wrap continuity first, then re-check digital provider count = 4 unique names |
 | Validation failure | Enter Step 5 repair loop: parse error -> query matching rule in references -> apply targeted JSON fix -> re-validate; common issues: missing pins, wrong suffixes, duplicate indices |
 | DRC failure | Enter Step 10 repair loop: parse DRC report -> query matching reference rules -> fix intent JSON -> regenerate and rerun DRC |
@@ -334,6 +339,7 @@ io-ring-orchestrator-T28/
 │   ├── draft_builder_T28.md
 │   ├── enrichment_rules_T28.md
 │   ├── T28_Technology.md
+│   ├── skill_language_reference.md    # SKILL language syntax & Virtuoso API reference
 │   ├── intent_graph_minimal.json
 │   ├── intent_graph_template.json
 │   └── image_vision_instruction.md
