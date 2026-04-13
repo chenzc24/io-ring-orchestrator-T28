@@ -19,7 +19,8 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
    - [Running the Built-in Wirebonding Test Cases](#running-the-built-in-wirebonding-test-cases)
    - [Via CLI Scripts](#via-cli-scripts)
 7. [Workflow](#workflow)
-8. [Output Files](#output-files)
+8. [Layout Editor (Step 6)](#layout-editor-step-6)
+9. [Output Files](#output-files)
 9. [Troubleshooting](#troubleshooting)
 10. [Related Documentation](#related-documentation)
 
@@ -515,6 +516,56 @@ Output files in output/generated/<timestamp>/
 | Digital IO | `PDDW16SDGZ` |
 | General corner | `PCORNER_G` |
 | Analog corner | `PCORNERA_G` |
+
+---
+
+## Layout Editor (Step 6)
+
+When the confirmed config is ready, the agent asks whether to open the **visual Layout Editor** before proceeding. If the user does not respond within a short timeout, the editor is **skipped automatically** and the auto-generated config is used directly.
+
+### What the Editor Does
+
+The Layout Editor is a **browser-based visual editor** launched on `localhost`. It renders the IO ring as an interactive SVG diagram where every pad, corner, and filler is a draggable, editable component. Users can review and adjust the placement, device assignment, and pin connections before the design is frozen into SKILL scripts.
+
+> **How it works:** A local HTTP server injects the layout data into a self-contained React page. When the user clicks **"Confirm & Continue"**, the edited layout is POSTed back to the Python process, merged with the original structure, and written as the confirmed config JSON.
+
+### Visual Conventions
+
+Components are color-coded by category:
+
+| Category | Color | Examples |
+|----------|-------|---------|
+| Analog IO / Power | Blue shades | `PDB3AC`, `PVDD3AC`, `PVSS1AC` |
+| Digital IO / Power | Green shades | `PDDW16SDGZ`, `PVDD1DGZ`, `PVSS1DGZ` |
+| Corners | Red shades | `PCORNERA_G` (analog), `PCORNER_G` (digital) |
+| Fillers | Gray shades | `PFILLER10`, `PFILLER20` |
+| Inner pads | Dashed border | Distinguishes inner ring pads from outer ring |
+
+Each component displays a label in `signal_name : device_type` format.
+
+### User Operations
+
+| Operation | How |
+|-----------|-----|
+| **Select** | Click a component; Ctrl+Click for multi-select; drag a box for area selection |
+| **Move** | Drag selected component(s) to reposition |
+| **Edit properties** | Select a component → edit in the Inspector panel (name, device, pins, direction) |
+| **Auto-fill pins** | Inspector panel button — fills pin connections from the device template |
+| **Add component** | Toolbar "Add" menu — IO Pad, Filler, Cut, or Corner |
+| **Delete** | Select component(s) → click Delete in toolbar |
+| **Copy / Paste** | Ctrl+C / Ctrl+V |
+| **Undo / Redo** | Ctrl+Z / Ctrl+Shift+Z |
+| **Zoom / Pan** | Mouse wheel to zoom; middle-click drag to pan |
+| **Import / Export JSON** | Toolbar buttons — load or save layout as JSON |
+| **Confirm & Continue** | Toolbar button — finalize edits and return to the automated flow |
+
+### Confirmation Flow
+
+1. Agent asks: *"Open Layout Editor or Skip?"* (timeout → skip)
+2. If opened → browser launches with the current layout rendered
+3. User reviews, drags, edits as needed
+4. User clicks **"Confirm & Continue"**
+5. Edited data is merged back; auto-generated config proceeds to Step 7
 
 ---
 

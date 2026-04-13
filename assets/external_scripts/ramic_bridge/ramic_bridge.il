@@ -9,7 +9,11 @@ RBDPath = if(getShellEnvVar("RB_DAEMON_PATH") then
             else
                 "./ramic_bridge_daemon.py"
             )
-RBPort = 65338                                                                   ; TCP port for client connections
+RBPort = if(getShellEnvVar("RB_PORT") then
+                atoi(getShellEnvVar("RB_PORT"))
+            else
+                65338
+            )                                                                      ; TCP port for client connections
 RBLocal = nil                                                                      ; Local-only connections (127.0.0.1 vs 0.0.0.0)
 RBEcho = nil                                                                     ; Echo bridging messages for debugging
 RBDLog = nil                                                                     ; Enable daemon logging to /tmp/RB.log
