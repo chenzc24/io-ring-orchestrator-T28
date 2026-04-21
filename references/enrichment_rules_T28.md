@@ -46,6 +46,7 @@ Constraint precedence (when no immutable-structure conflict exists):
     - Step 3.2: Analog power/ground device and pin connection (voltage-domain-based)
     - Step 3.3: Analog IO device and pin connection (voltage-domain-based)
     - Step 3.4: Corner device classification
+  - Step 4: Ring ESD handling (optional, user-triggered)
 - G2: Generate Intent Graph JSON
 
 ## G1: Signal Classification & Device Selection
@@ -156,7 +157,9 @@ All pin connections for digital signals (both digital IO and digital power/groun
 
 #### Step 2.3: Digital IO Signals Classification and pin connection
 - **Examples**: SDI, RST, SCK, SLP, SDO, D0-D13, DCLK, SYNC
-- **Device**: `PDDW16SDGZ_H_G`/`PDDW16SDGZ_V_G`
+- **Device selection** (pin rules and direction logic are identical for both):
+  - **Default**: `PDDW16SDGZ_H_G`/`PDDW16SDGZ_V_G`
+  - **User-specified alternative**: `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G` — use ONLY when user explicitly names PRUW08SDGZ; all pin connections, the `direction` field, and the VSS consistency rule are identical to PDDW16SDGZ
 - **Required fields**: `direction` (at instance top level: "input" or "output")
 - **Required pins**: VDD + VSS + VDDPST + VSSPST (ONLY these four, no AIO field)
 
@@ -179,8 +182,10 @@ All pin connections for digital signals (both digital IO and digital power/groun
   - VSSPST → high voltage ground signal name
   - VDDPST → high voltage power signal name
 
+**PRUW08SDGZ**: Identical pin connections to PDDW16SDGZ (VDD + VSS + VDDPST + VSSPST, same label mapping). Used only when user explicitly requests PRUW08SDGZ.
+
 **CRITICAL - All Digital Domain Pads Must Have 4 Pin Connections:**
-- **EVERY digital domain pad** (including digital IO PDDW16SDGZ and digital power/ground PVDD1DGZ/PVSS1DGZ/PVDD2POC/PVSS2DGZ) **MUST have EXACTLY 4 pin_connection entries**:
+- **EVERY digital domain pad** (including digital IO PDDW16SDGZ/PRUW08SDGZ and digital power/ground PVDD1DGZ/PVSS1DGZ/PVDD2POC/PVSS2DGZ) **MUST have EXACTLY 4 pin_connection entries**:
   - `VDD`: connects to low voltage power signal
   - `VSS`: connects to low voltage ground signal (MUST use the same signal name as all other pads' VSS pin_connection in the entire IO ring)
   - `VDDPST`: connects to high voltage power signal
@@ -204,16 +209,19 @@ All pin connections for digital signals (both digital IO and digital power/groun
 - **CRITICAL - Provider Pair Per Block**: Each contiguous block of a voltage domain MUST have its own **provider pair** (one VDD provider and one VSS provider within that block)
   - **Provider device types**: PVDD3AC/PVSS3AC (default) or PVDD3A/PVSS3A (only if user explicitly specifies)
   - **Selection rule for multiple signals with identical names** (signals with identical names, e.g., two signals both named "AVDD"):
-    - **Default behavior**: If multiple signals with identical names exist **within the same voltage domain** (e.g., two signals both named "AVDD" in the same domain), select the **first occurrence within that domain's range** in placement order as provider (PVDD3AC/PVSS3AC), all others with the same name in that domain become consumers (PVDD1AC/PVSS1AC)
+    - **Default behavior**: If multiple signals with identical names exist **within the same voltage domain** (e.g., two signals both named "AVDD" in the same domain), select the **first occurrence within that domain's range** in placement order as provider, all others with the same name in that domain become consumers (consumer family matches provider family: 1AC under 3AC provider, 1A under 3A provider)
     - **CRITICAL - Different Voltage Domains with Identical Signal Names**: If the same signal name appears in **different voltage domains**, each domain must have its own provider selection. Find the first occurrence **within each domain's specific range** (based on the domain's signal range in the signal list), not the global first occurrence across all domains. Each voltage domain must identify its provider signals independently within its own range.
     - **User override**: If user explicitly requires multiple signals with identical names to be providers, follow user's specification (all specified signals become providers with PVDD3AC/PVSS3AC or PVDD3A/PVSS3A device type)
   - **Each voltage domain** must have its own provider pair - cannot share providers across domains
 - **CRITICAL - Multiple Voltage Domains Allowed**: The system can create multiple voltage domains (when user explicitly specifies in Priority 1), each with its own provider pair. **In automatic analysis (Priority 2), use single voltage domain for all analog pads**
-- **Consumer device type**: All analog power/ground signals that are NOT selected as providers use `PVDD1AC`/`PVSS1AC` (consumers)
+- **Consumer device type** (all analog power/ground signals that are NOT selected as providers):
+  - **If the domain's provider pair is `PVDD3AC`/`PVSS3AC`** (default): consumers use `PVDD1AC`/`PVSS1AC`
+  - **If the domain's provider pair is `PVDD3A`/`PVSS3A`** (user-specified): consumers use `PVDD1A`/`PVSS1A`
+  - **CRITICAL — Consumer family must match provider family within the same voltage domain**: `1AC` pairs with `3AC`; `1A` pairs with `3A`. Do NOT mix `1AC` consumers under a `3A` provider or `1A` consumers under a `3AC` provider in the same domain.
 - **CRITICAL - Provider vs Consumer Distinction**: 
-  - **Provider**: ONLY the signals that appear in the voltage domain name → uses PVDD3AC/PVSS3AC
-  - **Consumer**: ALL other power/ground signals in that domain (even if their name contains VDD/VSS) → uses PVDD1AC/PVSS1AC
-  - **Key point**: If domain is "AVSS1/VREFP1", then ONLY AVSS1 and VREFP1 are providers. Any other power/ground signal (like AVDDH1) in this domain MUST use consumer device type (PVDD1AC/PVSS1AC), NOT provider device type
+  - **Provider**: ONLY the signals that appear in the voltage domain name → uses PVDD3AC/PVSS3AC (or PVDD3A/PVSS3A if user-specified)
+  - **Consumer**: ALL other power/ground signals in that domain (even if their name contains VDD/VSS) → uses the matching consumer family (PVDD1AC/PVSS1AC under a 3AC provider, PVDD1A/PVSS1A under a 3A provider)
+  - **Key point**: If domain is "AVSS1/VREFP1", then ONLY AVSS1 and VREFP1 are providers. Any other power/ground signal (like AVDDH1) in this domain MUST use the matching consumer device type, NOT provider device type
 
 **Priority 1: User Explicit Specification (MUST strictly follow)**
 - **When user explicitly specifies voltage domain**: **MUST strictly follow user's specification exactly**, do not modify or ask for confirmation
@@ -267,7 +275,7 @@ All pin connections for digital signals (both digital IO and digital power/groun
      - **Analog IO signals (PDB3AC)**: All connect to the selected provider pair
      - **Analog power/ground signals**: 
        - If matches the provider pair → use PVDD3AC/PVSS3AC (or PVDD3A/PVSS3A) as provider (but only one instance, already selected in step 1-2)
-       - All other analog power/ground signals → use PVDD1AC/PVSS1AC as consumers
+       - All other analog power/ground signals → use the matching consumer family: `PVDD1AC`/`PVSS1AC` under a 3AC provider, `PVDD1A`/`PVSS1A` under a 3A provider
 
 **2. CRITICAL: Assign Analog Signals to Their Voltage Domains**
 Based on the analysis above, group analog signals into their corresponding voltage domains.Every signal must belong to a voltage domain.
@@ -286,15 +294,20 @@ All pin connections for analog signals (both analog IO and analog power/ground) 
   - **Otherwise**: Use `PVDD3AC`/`PVSS3AC`
   - **CRITICAL**: Each voltage domain MUST have exactly one PVSS3 provider and one PVDD3 provider (one provider pair)
   - **Multiple provider instances with identical names allowed**: If user explicitly requires multiple signals with identical names to be providers (e.g., two signals both named "AVDD"), all specified signals become providers (PVDD3AC/PVSS3AC or PVDD3A/PVSS3A). Note: This means there can be multiple instances of the same provider signal name, but the domain still has one provider type pair (one VDD provider type + one VSS provider type)
-- **Consumer** (all other analog power/ground signals in the same domain that are NOT selected as providers): `PVDD1AC`/`PVSS1AC`
+- **Consumer** (all other analog power/ground signals in the same domain that are NOT selected as providers):
+  - Under a `PVDD3AC`/`PVSS3AC` provider pair: `PVDD1AC`/`PVSS1AC`
+  - Under a `PVDD3A`/`PVSS3A` provider pair: `PVDD1A`/`PVSS1A`
+  - **Consumer family must match provider family in the same domain** (1AC↔3AC, 1A↔3A); do NOT mix
 
 **Device Types:**
-- **PVDD1AC/PVSS1AC** (Consumer): Regular analog power/ground, voltage domain consumer
+- **PVDD1AC/PVSS1AC** (Consumer, paired with PVDD3AC/PVSS3AC): Regular analog power/ground, voltage domain consumer; uses TACVDD/TACVSS
+- **PVDD1A/PVSS1A** (Consumer, paired with PVDD3A/PVSS3A): Analog power/ground consumer with TAVDD/TAVSS pins. Only used when the domain's provider pair is PVDD3A/PVSS3A.
 - **PVDD3AC/PVSS3AC** (Provider): Voltage domain power/ground provider
 - **PVDD3A/PVSS3A** (Provider, User-Specified Only): Voltage domain power/ground provider with TAVDD/TAVSS pins
   - **CRITICAL**: Only use when user explicitly specifies these device types
   - **Do NOT automatically select** - only use if user explicitly mentions "PVDD3A" or "PVSS3A"
   - Similar to PVDD3AC/PVSS3AC but uses TAVDD/TAVSS instead of TACVDD/TACVSS
+- **PVSS2A** (Ring ESD, User-Triggered Only): Analog-domain pad for a user-declared whole-Ring ESD signal. Three pins: VSS + TAVSS + TAVDD. See Step 4.
 
 **Required Pins:**
 - **PVDD1AC**: AVDD + TACVSS/TACVDD + VSS
@@ -306,6 +319,16 @@ All pin connections for analog signals (both analog IO and analog power/ground) 
   - AVSS → own signal name
   - TACVSS → voltage domain ground provider signal name
   - TACVDD → voltage domain power provider signal name
+  - VSS → digital domain ground signal name (or default "GIOL")
+- **PVDD1A** (paired with PVDD3A/PVSS3A domain): AVDD + TAVSS/TAVDD + VSS
+  - AVDD → own signal name
+  - TAVSS → voltage domain ground provider signal name
+  - TAVDD → voltage domain power provider signal name
+  - VSS → digital domain ground signal name (or default "GIOL")
+- **PVSS1A** (paired with PVDD3A/PVSS3A domain): AVSS + TAVSS/TAVDD + VSS
+  - AVSS → own signal name
+  - TAVSS → voltage domain ground provider signal name
+  - TAVDD → voltage domain power provider signal name
   - VSS → digital domain ground signal name (or default "GIOL")
 - **PVDD3AC**: AVDD + TACVSS/TACVDD + VSS
   - AVDD → signal name with "_CORE" suffix (e.g., "VDDIB_CORE")
@@ -327,6 +350,11 @@ All pin connections for analog signals (both analog IO and analog power/ground) 
   - TAVSS → own signal name
   - TAVDD → corresponding power signal in same voltage domain
   - VSS → digital domain ground signal name (or default "GIOL")
+- **PVSS2A** (Ring ESD): VSS + TAVSS + TAVDD
+  - VSS → own signal name (Ring ESD signal name)
+  - TAVSS → analog voltage domain VSS provider signal name (same target as TACVSS on this domain's consumer pads)
+  - TAVDD → analog voltage domain VDD provider signal name (same target as TACVDD on this domain's consumer pads)
+  - **Note**: no separate VSS-to-digital-ground connection. Under the Step 4 ring-wide VSS override, every pad's VSS pin points to the ESD signal name — for PVSS2A this is its own name.
 
 **VSS Pin Connection Rule:**
 - If user specifies digital domain ground signal name → use user-specified name
@@ -386,8 +414,8 @@ All pin connections for digital signals (both digital IO and digital power/groun
 3. **CRITICAL - Check device types of both adjacent pads**:
    - For each corner, you MUST check the device type of BOTH adjacent pads
    - Device type classification:
-     - **Digital devices**: PDDW16SDGZ, PVDD1DGZ, PVSS1DGZ, PVDD2POC, PVSS2DGZ
-     - **Analog devices**: PDB3AC, PVDD1AC, PVSS1AC, PVDD3AC, PVSS3AC, PVDD3A, PVSS3A
+     - **Digital devices**: PDDW16SDGZ, PRUW08SDGZ, PVDD1DGZ, PVSS1DGZ, PVDD2POC, PVSS2DGZ
+     - **Analog devices**: PDB3AC, PVDD1AC, PVSS1AC, PVDD1A, PVSS1A, PVDD3AC, PVSS3AC, PVDD3A, PVSS3A, PVSS2A
 4. **CRITICAL - Determine corner type** (based on adjacent pad device types):
    - **Both adjacent pads are digital** → Use `PCORNER_G`
    - **Both adjacent pads are analog** → Use `PCORNERA_G`
@@ -400,6 +428,27 @@ All pin connections for digital signals (both digital IO and digital power/groun
    - Verify that all 4 corners have been analyzed
    - Verify that corner type matches adjacent pad device types
    - Verify that corner insertion order is correct based on placement_order
+
+### Step 4: Ring ESD Handling (Optional, User-Triggered)
+
+**Trigger**: User explicitly declares a whole-Ring ESD signal (e.g., "use VSS as the whole Ring ESD", "ring-wide ESD = <name>"). If user does NOT declare a Ring ESD, skip this step entirely and keep the default VSS pin rules from Steps 2.2, 2.3, 3.2, 3.3.
+
+**Device type by domain** (the ESD signal name may appear multiple times; each instance is classified by the domain of its position):
+- **In the digital signal block**: use `PVSS1DGZ` (same device type and pin rules as the standard digital VSS provider in Step 2.2)
+- **In any analog voltage domain**: use `PVSS2A`
+- **Same signal name across domains is expected**: e.g., a signal literally named `VSS` may appear both inside the digital block and inside one or more analog voltage domains. Device type is chosen per-instance by domain, NOT by signal name.
+
+**PVSS2A — Required Pins** (analog Ring ESD pad):
+- `VSS` → own signal name (the ESD signal name)
+- `TAVSS` → the analog voltage-domain VSS provider signal name of the domain this instance sits in (same target as TACVSS on that domain's consumer pads)
+- `TAVDD` → the analog voltage-domain VDD provider signal name of the same domain
+
+**CRITICAL — Ring-wide VSS pin override**:
+- When Ring ESD is active, the `VSS` pin_connection of **every pad in the entire IO ring** (all analog device types: PDB3AC, PVDD1AC, PVSS1AC, PVDD1A, PVSS1A, PVDD3AC, PVSS3AC, PVDD3A, PVSS3A, PVSS2A; all digital device types: PDDW16SDGZ, PRUW08SDGZ, PVDD1DGZ, PVSS1DGZ, PVDD2POC, PVSS2DGZ) MUST connect to the ESD signal name.
+- This supersedes the default rules:
+  - Step 3.2 "VSS Pin Connection Rule" (was: digital domain ground signal name or `GIOL`)
+  - Step 2.2 / Step 2.3 VSS-consistency rules (was: digital domain low-voltage VSS provider signal name)
+- The ring still has its normal digital VSS provider pair (PVSS1DGZ/PVDD1DGZ for the digital domain) and its normal analog VSS/VDD providers (PVSS3AC/PVDD3AC or PVSS3A/PVDD3A per voltage domain); the ESD rule only changes what the **VSS pin label** on every pad points to.
 
 
 ## G2: Generate Intent Graph JSON
@@ -430,11 +479,12 @@ All pin connections for digital signals (both digital IO and digital power/groun
 ### Configuration Examples
 
 **CRITICAL - VSS Pin Connection for ALL Pads (Universal Rule)**:
-- **ALL pads in the IO ring** (analog devices: PDB3AC, PVDD1AC, PVSS1AC, PVDD3AC, PVSS3AC, PVDD3A, PVSS3A; digital devices: PDDW16SDGZ, PVDD1DGZ, PVSS1DGZ, PVDD2POC, PVSS2DGZ) **MUST connect their `VSS` pin to the SAME digital domain low voltage VSS provider signal name**
+- **ALL pads in the IO ring** (analog devices: PDB3AC, PVDD1AC, PVSS1AC, PVDD1A, PVSS1A, PVDD3AC, PVSS3AC, PVDD3A, PVSS3A, PVSS2A; digital devices: PDDW16SDGZ, PRUW08SDGZ, PVDD1DGZ, PVSS1DGZ, PVDD2POC, PVSS2DGZ) **MUST connect their `VSS` pin to the SAME digital domain low voltage VSS provider signal name**
 - **CRITICAL - Consistency Requirement**: The `VSS` pin_connection label must be **identical across ALL pads** in the entire IO ring
 - **Signal name determination**:
   - If user specifies digital domain provider names, use the user-specified low voltage VSS signal name (e.g., "IOVSS" if user specifies "VSS/IOVSS/IOVDDL/IOVDDH")
   - If user does not specify, use the default digital low voltage VSS signal name (e.g., "GIOL")
+- **Ring ESD override**: If Step 4 Ring ESD is active, the `VSS` pin_connection label on every pad equals the user-declared ESD signal name instead of the digital-domain VSS provider name. This applies across BOTH analog and digital device types.
 
 **CRITICAL - Device Suffix Rule Based on Position**:
 - **Right and Left side devices** must append suffix **`_H_G`** to the base device name
@@ -496,6 +546,23 @@ All pin connections for digital signals (both digital IO and digital power/groun
 }
 ```
 
+#### Analog Power - Consumer (PVDD1A, paired with PVDD3A/PVSS3A domain)
+```json
+{
+  "name": "VDD3",
+  "device": "PVDD1A_H_G",
+  "position": "left_8",
+  "type": "pad",
+  "pin_connection": {
+    "AVDD": {"label": "VDD3"},
+    "TAVSS": {"label": "VSSIB"},
+    "TAVDD": {"label": "VDDIB"},
+    "VSS": {"label": "GIOL"}
+  }
+}
+```
+**Note**: Only use PVDD1A/PVSS1A when the domain's provider pair is PVDD3A/PVSS3A. Pin names are TAVSS/TAVDD (not TACVSS/TACVDD). PVSS1A mirrors this example with `AVSS` in place of `AVDD`.
+
 #### Analog Power - Provider (PVDD3AC)
 ```json
 {
@@ -546,6 +613,22 @@ All pin connections for digital signals (both digital IO and digital power/groun
 ```
 **Note**: Only use PVSS3A when user explicitly specifies this device type. Otherwise, use PVSS3AC.
 
+#### Ring ESD - Analog Domain (PVSS2A, User-Triggered Only)
+```json
+{
+  "name": "VSS",
+  "device": "PVSS2A_H_G",
+  "position": "left_5",
+  "type": "pad",
+  "pin_connection": {
+    "VSS": {"label": "VSS"},
+    "TAVSS": {"label": "VSSIB"},
+    "TAVDD": {"label": "VDDIB"}
+  }
+}
+```
+**Note**: In the digital signal block, the same ESD signal (e.g., "VSS") uses `PVSS1DGZ_H_G`/`PVSS1DGZ_V_G` with the standard digital VSS provider pin rules from Step 2.2. Only use PVSS2A when the user explicitly declares a whole-Ring ESD. Under the ring-wide VSS override, every other pad's VSS pin also connects to the ESD signal name (here "VSS"), not to "GIOL".
+
 #### Digital IO (PDDW16SDGZ)
 ```json
 {
@@ -562,7 +645,7 @@ All pin connections for digital signals (both digital IO and digital power/groun
   }
 }
 ```
-**Note**: `direction` is at instance top level, `pin_connection` contains ONLY VDD/VSS/VDDPST/VSSPST
+**Note**: `direction` is at instance top level, `pin_connection` contains ONLY VDD/VSS/VDDPST/VSSPST. If user specifies `PRUW08SDGZ`, set `device` to `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G`; `direction` and `pin_connection` are unchanged.
 
 #### Inner Ring Pad (Digital IO)
 ```json
@@ -609,8 +692,12 @@ All pin connections for digital signals (both digital IO and digital power/groun
   - Signals with `<>`: `{prefix}_CORE<{index}>` (e.g., "VDD<0>" → "VDD_CORE<0>")
 - [ ] **PVDD3A/PVSS3A device selection**: Only used when user explicitly specifies these device types
 - [ ] **PVDD3A/PVSS3A pin connections**: TAVDD/TAVSS configured correctly (similar to TACVDD/TACVSS but different pin names)
+- [ ] **Consumer family matches provider family within each voltage domain**: `PVDD1AC`/`PVSS1AC` under a 3AC provider pair, `PVDD1A`/`PVSS1A` under a 3A provider pair — no mixing
+- [ ] **PVDD1A/PVSS1A pin connections**: TAVSS/TAVDD (not TACVSS/TACVDD) point to the same domain providers; VSS follows the ring-wide VSS rule (digital VSS provider / `GIOL`, or ESD signal name if Step 4 is active)
 - [ ] `direction` field configured for all digital IO (including inner ring)
 - [ ] Digital IO pin_connection contains ONLY VDD/VSS/VDDPST/VSSPST
+- [ ] Digital IO device selection: default `PDDW16SDGZ`; use `PRUW08SDGZ` only when user explicitly specifies
+- [ ] Ring ESD: if user-declared, `PVSS2A` used in analog domain, `PVSS1DGZ` used in digital domain, and every pad's `VSS` pin_connection points to the ESD signal name (overriding the default digital VSS provider / `GIOL`)
 
 ### Final Confirmation
 - [ ] All checklist items completed

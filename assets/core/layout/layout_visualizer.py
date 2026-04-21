@@ -54,6 +54,17 @@ DEVICE_COLORS = {
     'PVSS1AC': '#3A80D2',  # Slightly darker blue - Analog regular ground (VSS), close to PDB3AC
     'PVSS1AC_H_G': '#3A80D2',
     'PVSS1AC_V_G': '#3A80D2',
+    # 1A consumers (paired with 3A providers) - distinct shade from 1AC
+    'PVDD1A': '#6DB0F5',  # Lighter blue - PVDD1A consumer (TAVDD/TAVSS variant of PVDD1AC)
+    'PVDD1A_H_G': '#6DB0F5',
+    'PVDD1A_V_G': '#6DB0F5',
+    'PVSS1A': '#4E8EE0',  # Lighter blue - PVSS1A consumer (TAVDD/TAVSS variant of PVSS1AC)
+    'PVSS1A_H_G': '#4E8EE0',
+    'PVSS1A_V_G': '#4E8EE0',
+    # Ring ESD analog pad
+    'PVSS2A': '#5F9EC0',  # Teal-blue - Ring ESD analog pad
+    'PVSS2A_H_G': '#5F9EC0',
+    'PVSS2A_V_G': '#5F9EC0',
     
     # Analog voltage domain power/ground (Blue shades, more distinct from regular)
     # PVDD3AC/PVSS3AC and PVDD3A/PVSS3A have larger color difference
@@ -74,6 +85,9 @@ DEVICE_COLORS = {
     'PDDW16SDGZ': '#32CD32',  # Medium green - Digital IO
     'PDDW16SDGZ_H_G': '#32CD32',
     'PDDW16SDGZ_V_G': '#32CD32',
+    'PRUW08SDGZ': '#3CB371',  # Medium sea green - Digital IO alternative
+    'PRUW08SDGZ_H_G': '#3CB371',
+    'PRUW08SDGZ_V_G': '#3CB371',
     
     # Digital power/ground (Green shades, different intensities)
     'PVDD1DGZ': '#90EE90',  # Light green - Digital power (VDD)
@@ -213,7 +227,7 @@ def parse_skill_layout(il_file_path: str) -> List[Dict]:
             # Fallback for separator
             device_type = 'PRCUTA'
             device_category = 'filler'  # Separator is also a filler type
-        elif 'PDB3AC' in cell_name or 'PVDD' in cell_name or 'PVSS' in cell_name or 'PDDW16SDGZ' in cell_name or 'PVDD1DGZ' in cell_name or 'PVSS1DGZ' in cell_name or 'PVSS2DGZ' in cell_name or 'PVDD2POC' in cell_name:
+        elif 'PDB3AC' in cell_name or 'PVDD' in cell_name or 'PVSS' in cell_name or 'PDDW16SDGZ' in cell_name or 'PRUW08SDGZ' in cell_name or 'PVDD1DGZ' in cell_name or 'PVSS1DGZ' in cell_name or 'PVSS2DGZ' in cell_name or 'PVDD2POC' in cell_name:
             # Fallback for power/ground/IO devices
             device_type = cell_name
             if is_inner_pad:
@@ -413,7 +427,7 @@ def convert_components_to_devices(layout_components: List[Dict]) -> List[Dict]:
         elif is_inner_pad:
             device_category = 'inner_pad'
         elif 'PDB3AC' in device_type or 'PVDD' in device_type or 'PVSS' in device_type or \
-             'PDDW16SDGZ' in device_type or 'PVDD1DGZ' in device_type or 'PVSS1DGZ' in device_type or \
+             'PDDW16SDGZ' in device_type or 'PRUW08SDGZ' in device_type or 'PVDD1DGZ' in device_type or 'PVSS1DGZ' in device_type or \
              'PVSS2DGZ' in device_type or 'PVDD2POC' in device_type:
             device_category = 'inner_pad' if is_inner_pad else 'io'
         
@@ -619,10 +633,11 @@ def visualize_layout_from_components(layout_components: List[Dict], output_path:
             other_types.append(dev_type)
         else:
             # Fallback to pattern matching
-            if 'PDDW16SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or \
+            if 'PDDW16SDGZ' in dev_type or 'PRUW08SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or \
                'PVSS2DGZ' in dev_type or 'PVDD2POC' in dev_type:
                 digital_io_types.append(dev_type)
             elif 'PDB3AC' in dev_type or 'PVDD1AC' in dev_type or 'PVSS1AC' in dev_type or \
+                 'PVDD1A' in dev_type or 'PVSS1A' in dev_type or 'PVSS2A' in dev_type or \
                  'PVDD3AC' in dev_type or 'PVSS3AC' in dev_type or 'PVDD3A' in dev_type or 'PVSS3A' in dev_type:
                 analog_io_types.append(dev_type)
             else:
@@ -880,10 +895,10 @@ def visualize_layout(il_file_path: str, output_path: Optional[str] = None) -> st
     
     for dev_type in sorted(device_types_found):
         # Check if it's a digital IO device
-        if 'PDDW16SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or 'PVSS2DGZ' in dev_type or 'PVDD2POC' in dev_type:
+        if 'PDDW16SDGZ' in dev_type or 'PRUW08SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or 'PVSS2DGZ' in dev_type or 'PVDD2POC' in dev_type:
             digital_io_types.append(dev_type)
         # Check if it's an analog IO device
-        elif 'PDB3AC' in dev_type or 'PVDD1AC' in dev_type or 'PVSS1AC' in dev_type or 'PVDD3AC' in dev_type or 'PVSS3AC' in dev_type or 'PVDD3A' in dev_type or 'PVSS3A' in dev_type:
+        elif 'PDB3AC' in dev_type or 'PVDD1AC' in dev_type or 'PVSS1AC' in dev_type or 'PVDD1A' in dev_type or 'PVSS1A' in dev_type or 'PVSS2A' in dev_type or 'PVDD3AC' in dev_type or 'PVSS3AC' in dev_type or 'PVDD3A' in dev_type or 'PVSS3A' in dev_type:
             analog_io_types.append(dev_type)
         else:
             other_types.append(dev_type)

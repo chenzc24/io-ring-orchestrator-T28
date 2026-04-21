@@ -307,7 +307,7 @@ const DEFAULT_T28_PROFILE = {
   digital: { regPwr: 'VIOL', regGnd: 'GIOL', vdPwr: 'VIOH', vdGnd: 'GIOH' },
 };
 const PROCESS_DEFAULTS = { T28: DEFAULT_T28_PROFILE, T180: DEFAULT_T180_PROFILE };
-const T28_SUPPORTED_DEVICES = new Set(['PDDW16SDGZ_V_G','PDDW16SDGZ_H_G','PVDD1DGZ_V_G','PVDD1DGZ_H_G','PVSS1DGZ_V_G','PVSS1DGZ_H_G','PVDD2POC_V_G','PVDD2POC_H_G','PVSS2DGZ_V_G','PVSS2DGZ_H_G','PDB3AC_V_G','PDB3AC_H_G','PVDD1AC_V_G','PVDD1AC_H_G','PVSS1AC_V_G','PVSS1AC_H_G','PVDD3A_V_G','PVDD3A_H_G','PVSS3A_V_G','PVSS3A_H_G','PVDD3AC_V_G','PVDD3AC_H_G','PVSS3AC_V_G','PVSS3AC_H_G']);
+const T28_SUPPORTED_DEVICES = new Set(['PDDW16SDGZ_V_G','PDDW16SDGZ_H_G','PRUW08SDGZ_V_G','PRUW08SDGZ_H_G','PVDD1DGZ_V_G','PVDD1DGZ_H_G','PVSS1DGZ_V_G','PVSS1DGZ_H_G','PVDD2POC_V_G','PVDD2POC_H_G','PVSS2DGZ_V_G','PVSS2DGZ_H_G','PDB3AC_V_G','PDB3AC_H_G','PVDD1AC_V_G','PVDD1AC_H_G','PVSS1AC_V_G','PVSS1AC_H_G','PVDD1A_V_G','PVDD1A_H_G','PVSS1A_V_G','PVSS1A_H_G','PVSS2A_V_G','PVSS2A_H_G','PVDD3A_V_G','PVDD3A_H_G','PVSS3A_V_G','PVSS3A_H_G','PVDD3AC_V_G','PVDD3AC_H_G','PVSS3AC_V_G','PVSS3AC_H_G']);
 const T180_SUPPORTED_DEVICES = new Set(['PVDD1ANA','PVSS1ANA','PVDD1CDG','PVSS1CDG','PVDD2CDG','PVSS2CDG','PDDW0412SCDG']);
 const T180_ANALOG_PREFERRED_DEVICES = new Set(['PVDD1ANA','PVSS1ANA']);
 const T180_DIGITAL_STRICT_DEVICES = new Set(['PDDW0412SCDG']);
@@ -318,7 +318,7 @@ const resolveProcessNode = (processNode) => { const n=String(processNode||'T180'
 const normalizeDeviceName = (device) => String(device||'').trim().toUpperCase();
 const getSupportedDevices = (resolvedNode) => resolvedNode==='T180'?SUPPORTED_DEVICES_BY_NODE.T180:SUPPORTED_DEVICES_BY_NODE.T28;
 const matchesT28Family = (device, familyPrefix) => device.startsWith(`${familyPrefix}_`);
-const T28_DIGITAL_FAMILIES = new Set(['PDDW16SDGZ','PVDD1DGZ','PVSS1DGZ','PVDD2POC','PVSS2DGZ']);
+const T28_DIGITAL_FAMILIES = new Set(['PDDW16SDGZ','PRUW08SDGZ','PVDD1DGZ','PVSS1DGZ','PVDD2POC','PVSS2DGZ']);
 const getSupportedDevicesForProcess = (processNode) => { const resolved=resolveProcessNode(processNode)||'T180'; return Array.from(SUPPORTED_DEVICES_BY_NODE[resolved]); };
 const isSupportedDeviceForProcess = (processNode,device) => { const resolved=resolveProcessNode(processNode); if(!resolved)return false; const nd=normalizeDeviceName(device); if(!nd)return false; return SUPPORTED_DEVICES_BY_NODE[resolved].has(nd); };
 const classifyDeviceForProcess = (processNode,device) => { const resolved=resolveProcessNode(processNode); const nd=normalizeDeviceName(device); if(!resolved||!nd)return'unsupported'; if(!SUPPORTED_DEVICES_BY_NODE[resolved].has(nd))return'unsupported'; if(resolved==='T180'){if(T180_DIGITAL_STRICT_DEVICES.has(nd))return'digital'; if(T180_ANALOG_PREFERRED_DEVICES.has(nd))return'analog'; return'unsupported';} const isT28Digital=Array.from(T28_DIGITAL_FAMILIES).some(f=>matchesT28Family(nd,f)); return isT28Digital?'digital':'analog'; };
@@ -329,6 +329,9 @@ const T28_RULES = [
   { family:'PDB3AC', build:(n,l)=>({AIO:{label:n||'AIO'},TACVSS:{label:l.analogGndRef},TACVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
   { family:'PVDD1AC', build:(n,l)=>({AVDD:{label:n||'AVDD'},TACVSS:{label:l.analogGndRef},TACVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
   { family:'PVSS1AC', build:(n,l)=>({AVSS:{label:n||'AVSS'},TACVSS:{label:l.analogGndRef},TACVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
+  { family:'PVDD1A', build:(n,l)=>({AVDD:{label:n||'AVDD'},TAVSS:{label:l.analogGndRef},TAVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
+  { family:'PVSS1A', build:(n,l)=>({AVSS:{label:n||'AVSS'},TAVSS:{label:l.analogGndRef},TAVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
+  { family:'PVSS2A', build:(n,l)=>({VSS:{label:n||'VSS'},TAVSS:{label:l.analogGndRef},TAVDD:{label:l.analogPwrRef}}) },
   { family:'PVDD3AC', build:(n,l)=>({AVDD:{label:buildCoreName(n,'AVDD')},TACVSS:{label:l.analogGndRef},TACVDD:{label:n||l.analogPwrRef},VSS:{label:l.digitalVss}}) },
   { family:'PVSS3AC', build:(n,l)=>({AVSS:{label:buildCoreName(n,'AVSS')},TACVSS:{label:n||l.analogGndRef},TACVDD:{label:l.analogPwrRef},VSS:{label:l.digitalVss}}) },
   { family:'PVDD3A', build:(n,l)=>({AVDD:{label:buildCoreName(n,'AVDD')},TAVSS:{label:l.analogGndRef},TAVDD:{label:n||l.analogPwrRef},VSS:{label:l.digitalVss}}) },
@@ -544,11 +547,15 @@ const T28_DEVICE_COLORS = {
   PDB3AC: '#4A90E2', PDB3AC_H_G: '#4A90E2', PDB3AC_V_G: '#4A90E2',
   PVDD1AC: '#5BA0F2', PVDD1AC_H_G: '#5BA0F2', PVDD1AC_V_G: '#5BA0F2',
   PVSS1AC: '#3A80D2', PVSS1AC_H_G: '#3A80D2', PVSS1AC_V_G: '#3A80D2',
+  PVDD1A: '#6DB0F5', PVDD1A_H_G: '#6DB0F5', PVDD1A_V_G: '#6DB0F5',
+  PVSS1A: '#4E8EE0', PVSS1A_H_G: '#4E8EE0', PVSS1A_V_G: '#4E8EE0',
+  PVSS2A: '#5F9EC0', PVSS2A_H_G: '#5F9EC0', PVSS2A_V_G: '#5F9EC0',
   PVDD3AC: '#87CEEB', PVDD3AC_H_G: '#87CEEB', PVDD3AC_V_G: '#87CEEB',
   PVSS3AC: '#4682B4', PVSS3AC_H_G: '#4682B4', PVSS3AC_V_G: '#4682B4',
   PVDD3A: '#7EC8E3', PVDD3A_H_G: '#7EC8E3', PVDD3A_V_G: '#7EC8E3',
   PVSS3A: '#3E7AB0', PVSS3A_H_G: '#3E7AB0', PVSS3A_V_G: '#3E7AB0',
   PDDW16SDGZ: '#32CD32', PDDW16SDGZ_H_G: '#32CD32', PDDW16SDGZ_V_G: '#32CD32',
+  PRUW08SDGZ: '#3CB371', PRUW08SDGZ_H_G: '#3CB371', PRUW08SDGZ_V_G: '#3CB371',
   PVDD1DGZ: '#90EE90', PVDD1DGZ_H_G: '#90EE90', PVDD1DGZ_V_G: '#90EE90',
   PVDD2POC: '#90EE90', PVDD2POC_H_G: '#90EE90', PVDD2POC_V_G: '#90EE90',
   PVSS1DGZ: '#228B22', PVSS1DGZ_H_G: '#228B22', PVSS1DGZ_V_G: '#228B22',
@@ -1253,14 +1260,15 @@ function RingCanvasComponent() {
   const legendGroups = isT28Legend ? [
     { title: 'Analog IO (Blue)', items: [
       { label: 'PDB3AC', color: '#4A90E2' }, { label: 'PVDD1AC', color: '#5BA0F2' },
-      { label: 'PVSS1AC', color: '#3A80D2' }, { label: 'PVDD3AC', color: '#87CEEB' },
-      { label: 'PVSS3AC', color: '#4682B4' }, { label: 'PVDD3A', color: '#7EC8E3' },
-      { label: 'PVSS3A', color: '#3E7AB0' },
+      { label: 'PVSS1AC', color: '#3A80D2' }, { label: 'PVDD1A', color: '#6DB0F5' },
+      { label: 'PVSS1A', color: '#4E8EE0' }, { label: 'PVSS2A', color: '#5F9EC0' },
+      { label: 'PVDD3AC', color: '#87CEEB' }, { label: 'PVSS3AC', color: '#4682B4' },
+      { label: 'PVDD3A', color: '#7EC8E3' }, { label: 'PVSS3A', color: '#3E7AB0' },
     ]},
     { title: 'Digital IO (Green)', items: [
-      { label: 'PDDW16SDGZ', color: '#32CD32' }, { label: 'PVDD1DGZ', color: '#90EE90' },
-      { label: 'PVDD2POC', color: '#90EE90' }, { label: 'PVSS1DGZ', color: '#228B22' },
-      { label: 'PVSS2DGZ', color: '#228B22' },
+      { label: 'PDDW16SDGZ', color: '#32CD32' }, { label: 'PRUW08SDGZ', color: '#3CB371' },
+      { label: 'PVDD1DGZ', color: '#90EE90' }, { label: 'PVDD2POC', color: '#90EE90' },
+      { label: 'PVSS1DGZ', color: '#228B22' }, { label: 'PVSS2DGZ', color: '#228B22' },
     ]},
     { title: 'Corners / Fillers', items: [
       { label: 'PCORNERA_G', color: '#FF6B6B' }, { label: 'PCORNER_G', color: '#FF8888' },

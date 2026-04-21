@@ -56,18 +56,22 @@ class VoltageDomainHandler:
         # Digital voltage domain
         digital_devices = [
             "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G", "PDDW16SDGZ",
+            "PRUW08SDGZ_V_G", "PRUW08SDGZ_H_G", "PRUW08SDGZ",
             "PVDD1DGZ_V_G", "PVDD1DGZ_H_G",
             "PVSS1DGZ_V_G", "PVSS1DGZ_H_G",
             "PVDD2POC_V_G", "PVDD2POC_H_G", "PVDD2POC",
             "PVSS2DGZ_V_G", "PVSS2DGZ_H_G", "PVSS2DGZ",
             "PCORNER_G"  # Digital corner
         ]
-        
+
         # Analog voltage domain
         analog_devices = [
             "PDB3AC_V_G", "PDB3AC_H_G", "PDB3AC",
             "PVDD1AC_V_G", "PVDD1AC_H_G", "PVDD1AC",
             "PVSS1AC_V_G", "PVSS1AC_H_G", "PVSS1AC",
+            "PVDD1A_V_G", "PVDD1A_H_G", "PVDD1A",
+            "PVSS1A_V_G", "PVSS1A_H_G", "PVSS1A",
+            "PVSS2A_V_G", "PVSS2A_H_G", "PVSS2A",
             "PVDD3A_V_G", "PVDD3A_H_G",
             "PVSS3A_V_G", "PVSS3A_H_G",
             "PVDD3AC_V_G", "PVDD3AC_H_G",
@@ -134,6 +138,9 @@ class VoltageDomainHandler:
             "PDDW16SDGZ_V_G": "DIGITAL_IO",  # Digital IO domain
             "PDDW16SDGZ_H_G": "DIGITAL_IO",
             "PDDW16SDGZ": "DIGITAL_IO",
+            "PRUW08SDGZ_V_G": "DIGITAL_IO",  # Digital IO alternative
+            "PRUW08SDGZ_H_G": "DIGITAL_IO",
+            "PRUW08SDGZ": "DIGITAL_IO",
             "PVDD1DGZ_V_G": "DIGITAL_1",     # Digital domain 1
             "PVDD1DGZ_H_G": "DIGITAL_1",
             "PVSS1DGZ_V_G": "DIGITAL_1",
@@ -155,6 +162,15 @@ class VoltageDomainHandler:
             "PVSS1AC_V_G": "VDD1AC_VSS1AC",
             "PVSS1AC_H_G": "VDD1AC_VSS1AC",
             "PVSS1AC": "VDD1AC_VSS1AC",
+            "PVDD1A_V_G": "VDD3A_VSS3A",   # 1A consumers pair with 3A providers
+            "PVDD1A_H_G": "VDD3A_VSS3A",
+            "PVDD1A": "VDD3A_VSS3A",
+            "PVSS1A_V_G": "VDD3A_VSS3A",
+            "PVSS1A_H_G": "VDD3A_VSS3A",
+            "PVSS1A": "VDD3A_VSS3A",
+            "PVSS2A_V_G": "VDD3A_VSS3A",   # Ring ESD pad (cross-domain; fallback groups with 3A)
+            "PVSS2A_H_G": "VDD3A_VSS3A",
+            "PVSS2A": "VDD3A_VSS3A",
             "PVDD3A_V_G": "VDD3A_VSS3A",
             "PVDD3A_H_G": "VDD3A_VSS3A",
             "PVSS3A_V_G": "VDD3A_VSS3A",
@@ -232,8 +248,12 @@ class VoltageDomainHandler:
             "PDB3AC_V_G", "PDB3AC_H_G",
             "PVDD1AC_V_G", "PVDD1AC_H_G",
             "PVSS1AC_V_G", "PVSS1AC_H_G",
+            "PVDD1A_V_G", "PVDD1A_H_G",
+            "PVSS1A_V_G", "PVSS1A_H_G",
+            "PVSS2A_V_G", "PVSS2A_H_G",
             # Digital voltage domain users
-            "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G"
+            "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G",
+            "PRUW08SDGZ_V_G", "PRUW08SDGZ_H_G"
         ]
         
         return device in user_devices 

@@ -151,8 +151,8 @@ def validate_config(config: Dict[str, Any]) -> bool:
                     print(f"❌ Error: instance[{i}] {name}'s corner device name is incorrect: got '{device}', expected 'PCORNER_G' or 'PCORNERA_G'")
                     return False
 
-        # Validate direction field (required for digital IO)
-        if device.startswith('PDDW16SDGZ'):
+        # Validate direction field (required for digital IO; PDDW16SDGZ default, PRUW08SDGZ alternative)
+        if device.startswith('PDDW16SDGZ') or device.startswith('PRUW08SDGZ'):
             if 'direction' not in instance:
                 print(f"❌ Error: instance[{i}] {name}'s digital IO missing direction field")
                 return False
@@ -168,8 +168,8 @@ def validate_config(config: Dict[str, Any]) -> bool:
                 print(f"❌ Error: instance[{i}] {name}'s pin_connection must be a dictionary")
                 return False
 
-            # Validate digital IO pin_connection
-            if device.startswith('PDDW16SDGZ'):
+            # Validate digital IO pin_connection (both PDDW16SDGZ and PRUW08SDGZ share identical VDD/VSS/VDDPST/VSSPST requirements)
+            if device.startswith('PDDW16SDGZ') or device.startswith('PRUW08SDGZ'):
                 required_pins = ['VDD', 'VSS', 'VDDPST', 'VSSPST']
                 for pin in required_pins:
                     if pin not in pin_connection:
@@ -336,8 +336,8 @@ def get_config_statistics(config: Dict[str, Any]) -> Dict[str, Any]:
         device = instance.get('device', 'unknown')
         device_types[device] = device_types.get(device, 0) + 1
 
-    # Count digital IO inputs/outputs
-    digital_ios = [inst for inst in instances if inst.get('device') == 'PDDW16SDGZ']
+    # Count digital IO inputs/outputs (both device types)
+    digital_ios = [inst for inst in instances if inst.get('device') in ('PDDW16SDGZ', 'PRUW08SDGZ')]
     input_ios = [io for io in digital_ios if io.get('direction') == 'input']
     output_ios = [io for io in digital_ios if io.get('direction') == 'output']
 

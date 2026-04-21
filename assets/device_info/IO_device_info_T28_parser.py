@@ -810,9 +810,67 @@ class DeviceTemplateManager:
                     'create_label': True,
                     'label_pattern': 'GIOL'  # Default input IO configuration
                 }
+            },
+            'PRUW08SDGZ_H_G': {
+                'PAD': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'VSSPST': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOH'},
+                'VDDPST': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOH'},
+                'VDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOL'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'POC': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'POC'},
+                'REN': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'OEN': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOL'},
+                'C': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}_CORE'},
+                'I': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'}
+            },
+            'PRUW08SDGZ_V_G': {
+                'PAD': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'VSSPST': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOH'},
+                'VDDPST': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOH'},
+                'VDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOL'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'POC': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'POC'},
+                'REN': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'OEN': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VIOL'},
+                'C': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}_CORE'},
+                'I': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'}
+            },
+            'PVDD1A_H_G': {
+                'AVDD': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
+            },
+            'PVDD1A_V_G': {
+                'AVDD': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
+            },
+            'PVSS1A_H_G': {
+                'AVSS': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
+            },
+            'PVSS1A_V_G': {
+                'AVSS': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'VSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'GIOL'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
+            },
+            'PVSS2A_H_G': {
+                'VSS': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
+            },
+            'PVSS2A_V_G': {
+                'VSS': {'create_pin': True, 'create_wire': True, 'create_label': True, 'label_pattern': '{pad_name}'},
+                'TAVSS': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VSSIB'},
+                'TAVDD': {'create_pin': False, 'create_wire': True, 'create_label': True, 'label_pattern': 'VDDIB'}
             }
         }
-    
+
     def add_template(self, template_name, template):
         self.templates[template_name] = template
     
@@ -829,8 +887,8 @@ class DeviceTemplateManager:
                 if pin_label is not None:
                     rule['label'] = pin_label
                 else:
-                    # Handle special IO configuration for PDDW16SDGZ, auxiliary pins dynamically follow main power/ground labels
-                    if device_type in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G'] and io_type in ['input', 'output']:
+                    # Handle special IO configuration for PDDW16SDGZ and PRUW08SDGZ (identical pin semantics); auxiliary pins dynamically follow main power/ground labels
+                    if device_type in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G', 'PRUW08SDGZ_H_G', 'PRUW08SDGZ_V_G'] and io_type in ['input', 'output']:
                         if pin_name == 'REN':
                                 # REN high level connects to VDD, low level connects to VSS
                             if io_type == 'input':

@@ -66,13 +66,15 @@
   },
   "digital_devices": [
     "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G",
+    "PRUW08SDGZ_V_G", "PRUW08SDGZ_H_G",
     "PVDD1DGZ_V_G", "PVDD1DGZ_H_G",
     "PVSS1DGZ_V_G", "PVSS1DGZ_H_G",
     "PVDD2POC_V_G", "PVDD2POC_H_G",
     "PVSS2DGZ_V_G", "PVSS2DGZ_H_G"
   ],
   "digital_io": [
-    "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G"
+    "PDDW16SDGZ_V_G", "PDDW16SDGZ_H_G",
+    "PRUW08SDGZ_V_G", "PRUW08SDGZ_H_G"
   ],
   "digital_vol": [
     "PVDD1DGZ_V_G", "PVDD1DGZ_H_G",
@@ -87,6 +89,9 @@
     "PDB3AC_V_G", "PDB3AC_H_G",
     "PVDD1AC_V_G", "PVDD1AC_H_G",
     "PVSS1AC_V_G", "PVSS1AC_H_G",
+    "PVDD1A_V_G", "PVDD1A_H_G",
+    "PVSS1A_V_G", "PVSS1A_H_G",
+    "PVSS2A_V_G", "PVSS2A_H_G",
     "PVDD3A_V_G", "PVDD3A_H_G",
     "PVSS3A_V_G", "PVSS3A_H_G",
     "PVDD3AC_V_G", "PVDD3AC_H_G",
@@ -98,13 +103,16 @@
   "analog_vol": [
     "PVDD1AC_V_G", "PVDD1AC_H_G",
     "PVSS1AC_V_G", "PVSS1AC_H_G",
+    "PVDD1A_V_G", "PVDD1A_H_G",
+    "PVSS1A_V_G", "PVSS1A_H_G",
+    "PVSS2A_V_G", "PVSS2A_H_G",
     "PVDD3A_V_G", "PVDD3A_H_G",
     "PVSS3A_V_G", "PVSS3A_H_G",
     "PVDD3AC_V_G", "PVDD3AC_H_G",
     "PVSS3AC_V_G", "PVSS3AC_H_G"
   ],
   "analog_pins":[
-    "TACVDD","TACVSS","TVDD","AVSS"
+    "TACVDD","TACVSS","TAVDD","TAVSS","TVDD","AVSS","AVDD"
   ],
   "corner_devices": ["PCORNERA_G", "PCORNER_G"],
   "analog_corner": ["PCORNERA_G"],

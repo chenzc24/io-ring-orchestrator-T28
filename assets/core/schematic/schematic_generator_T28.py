@@ -136,7 +136,7 @@ class SchematicGenerator:
         # Determine offset based on device type
         if device_type.startswith('PDB3AC'):  # Analog signal
             offset = 1.5 * 0.125
-        elif device_type.startswith('PDDW16SDGZ'):  # Digital IO
+        elif device_type.startswith('PDDW16SDGZ') or device_type.startswith('PRUW08SDGZ'):  # Digital IO (PDDW16SDGZ default, PRUW08SDGZ alternative)
             offset = -5.5 * 0.125
         elif (device_type.startswith('PVDD1DGZ') or device_type.startswith('PVSS1DGZ') or 
               device_type.startswith('PVDD2POC') or device_type.startswith('PVSS2DGZ')):  # Digital power/ground
@@ -701,7 +701,7 @@ class SchematicGenerator:
                     continue
                 
                 # Check if it's a digital IO device and label is noConn
-                if (device in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G'] and 
+                if (device in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G', 'PRUW08SDGZ_H_G', 'PRUW08SDGZ_V_G'] and
                     label == 'noConn'):
                     # Create noConn component
                     if not noConn_loaded:

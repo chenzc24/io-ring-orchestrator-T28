@@ -37,6 +37,7 @@ PROCESS_CONFIG = {
     "device_offset_rules": {
         "PDB3AC": 1.5 * 0.125,  # Analog signal
         "PDDW16SDGZ": -5.5 * 0.125,  # Digital IO
+        "PRUW08SDGZ": -5.5 * 0.125,  # Digital IO alternative (same offset as PDDW16SDGZ)
         "PVDD1DGZ": -8 * 0.125,  # Digital power/ground
         "PVSS1DGZ": -8 * 0.125,
         "PVDD2POC": -8 * 0.125,
