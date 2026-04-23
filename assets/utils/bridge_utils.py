@@ -9,13 +9,44 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def _find_project_root() -> str:
+    """Walk up from the skill root to find the project root (directory with .venv or .git)."""
+    start = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    candidate = start
+    for _ in range(20):  # safety limit
+        if os.path.isdir(os.path.join(candidate, ".venv")) or os.path.isdir(os.path.join(candidate, ".git")):
+            return candidate
+        parent = os.path.dirname(candidate)
+        if parent == candidate:
+            break
+        candidate = parent
+    return start
+
+
 def _load_skill_env() -> None:
-    """Load .env from skill root (deterministic, independent of cwd)."""
+    """Load .env from project root and skill root (deterministic, independent of cwd).
+
+    Resolution order:
+      1. Project root .env (if .venv or .git found above skill root)
+      2. Skill root .env (fallback)
+      3. cwd .env (dotenv default)
+
+    Project root takes priority for shared config (VB_*, AMS_*).
+    Skill root can override for skill-specific values.
+    override=False means first-set-wins — project root values are not clobbered.
+    """
+    project_root = _find_project_root()
+    project_env = os.path.join(project_root, ".env")
+    if os.path.exists(project_env):
+        load_dotenv(dotenv_path=project_env, override=False)
+
     skill_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    env_file = os.path.join(skill_root, ".env")
-    if os.path.exists(env_file):
-        load_dotenv(dotenv_path=env_file, override=False)
-    else:
+    skill_env = os.path.join(skill_root, ".env")
+    if os.path.exists(skill_env) and skill_env != project_env:
+        load_dotenv(dotenv_path=skill_env, override=False)
+
+    # Fallback: let dotenv search from cwd
+    if not os.path.exists(project_env) and not os.path.exists(skill_env):
         load_dotenv(override=False)
 
 

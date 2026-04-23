@@ -70,18 +70,23 @@ mkdir -p "$output_dir"
 echo "AMS_OUTPUT_ROOT=${AMS_OUTPUT_ROOT}"
 echo "output_dir=${output_dir}"
 
-# Resolve Python interpreter (prefer .venv over system python)
-WORK_ROOT_ABS="$(cd "${WORK_ROOT}" && pwd)"
-if [ -f "${WORK_ROOT_ABS}/.venv/Scripts/python.exe" ]; then
-  export AMS_PYTHON="${WORK_ROOT_ABS}/.venv/Scripts/python.exe"
-elif [ -f "${WORK_ROOT_ABS}/.venv/bin/python" ]; then
-  export AMS_PYTHON="${WORK_ROOT_ABS}/.venv/bin/python"
+# Resolve Python interpreter — search project root .venv first, then skill .venv, then system.
+# Project-level .venv is preferred: all skills + the bridge share one venv.
+PROJECT_ROOT="$(cd "${WORK_ROOT}" && while [ ! -d .venv ] && [ "$(pwd)" != "/" ]; do cd ..; done; pwd)"
+if [ -f "${PROJECT_ROOT}/.venv/Scripts/python.exe" ]; then
+  export AMS_PYTHON="${PROJECT_ROOT}/.venv/Scripts/python.exe"
+elif [ -f "${PROJECT_ROOT}/.venv/bin/python" ]; then
+  export AMS_PYTHON="${PROJECT_ROOT}/.venv/bin/python"
+elif [ -f "${SKILL_ROOT}/.venv/Scripts/python.exe" ]; then
+  export AMS_PYTHON="${SKILL_ROOT}/.venv/Scripts/python.exe"
+elif [ -f "${SKILL_ROOT}/.venv/bin/python" ]; then
+  export AMS_PYTHON="${SKILL_ROOT}/.venv/bin/python"
 elif command -v python3 &>/dev/null; then
   export AMS_PYTHON="python3"
 elif command -v python &>/dev/null; then
   export AMS_PYTHON="python"
 else
-  echo "ERROR: No Python interpreter found. Install Python 3.9+ and create .venv."
+  echo "ERROR: No Python interpreter found. Install Python 3.9+ and create .venv at project root."
   return 1
 fi
 echo "AMS_PYTHON=${AMS_PYTHON}"

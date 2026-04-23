@@ -55,73 +55,74 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 
 ## Installation
 
-### 0. Install virtuoso-bridge-lite (once per machine)
-
-This skill depends on **virtuoso-bridge-lite** for everything that touches Virtuoso
-or the EDA server. Clone it first (you'll install it into the T28 skill's venv in Step 2):
+### 0. Clone the bridge and skill
 
 ```bash
 git clone <your virtuoso-bridge-lite repo>
-# Note the clone path — you'll need it in Step 2.
+git clone <your io-ring-orchestrator-T28 repo>   # or copy into .claude/skills/
 ```
 
-### 1. Clone or copy the skill into your Claude Code skills directory
+### 1. Create a project-level `.venv` (one venv for all skills + bridge)
 
-**Project-level (recommended for team use):**
-```bash
-# From your project root:
-mkdir -p .claude/skills
-cp -r io-ring-orchestrator-T28 .claude/skills/
-```
-
-**User-level (available across all projects):**
-```bash
-mkdir -p ~/.claude/skills
-cp -r io-ring-orchestrator-T28 ~/.claude/skills/
-```
-
-Claude Code discovers skills by scanning the `.claude/skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
-
-### 2. Install Python dependencies (skill + bridge in one venv)
-
-> **Important:** The T28 skill and virtuoso-bridge-lite **must share the same
-> virtual environment**. The skill imports `virtuoso_bridge` at runtime, so
-> the bridge package must be installed into the skill's `.venv`. Do NOT create
-> separate venvs for each.
-
-Run this from the skill destination directory after copying:
+> **Why project-level?** All skills in a project share `virtuoso-bridge-lite`
+> and need it on `PATH`. A single `.venv` at the project root means you
+> activate once, and every skill + the `virtuoso-bridge` CLI just works.
+> If you add more skills later (e.g. spectre), just `pip install` their
+> deps into the same `.venv`.
 
 ```bash
-# Project-level install:
-cd .claude/skills/io-ring-orchestrator-T28
+cd <project-root>
 
 python -m venv .venv
 source .venv/bin/activate        # Linux / Mac
 # .venv\Scripts\activate         # Windows
 
-# Install T28 skill dependencies
-pip install -r requirements.txt
-
-# Install virtuoso-bridge-lite into the SAME venv (edit the path to your clone)
+# Install the bridge (provides VirtuosoClient, SSHClient, and the CLI)
 pip install -e /path/to/virtuoso-bridge-lite
 
-# Verify both are installed:
+# Install T28 skill dependencies
+pip install -r .claude/skills/io-ring-orchestrator-T28/requirements.txt
+
+# Install any other skill deps into the SAME venv, e.g.:
+# pip install -r .claude/skills/spectre-skill/requirements.txt
+
+# Verify:
 python -c "import virtuoso_bridge; print(virtuoso_bridge.__version__)"
 virtuoso-bridge --version        # should print 0.6.x or later
 ```
 
-Or, user-level install (one-liner):
+#### Auto-activation (optional but recommended)
+
+Instead of manually running `source .venv/bin/activate` every session, pick one:
+
+**Option A — `direnv` (Linux/Mac, recommended):**
 ```bash
-cd ~/.claude/skills/io-ring-orchestrator-T28
-python -m venv .venv && source .venv/bin/activate && \
-  pip install -r requirements.txt && \
-  pip install -e /path/to/virtuoso-bridge-lite
+# Install direnv, then:
+echo 'source .venv/bin/activate' > .envrc
+direnv allow
+# Now the venv auto-activates whenever you cd into the project
 ```
 
-Then configure the remote connection once:
+**Option B — PowerShell profile (Windows):**
+```powershell
+# Add to your $PROFILE:
+function Enter-BridgeAgent { Set-Location "C:\Users\you\Desktop\bridge-Agent"; & ".venv\Scripts\Activate.ps1" }
+```
+
+**Option C — VS Code / IDE:**
+VS Code auto-detects `.venv` at project root. Select it as the interpreter
+(`Ctrl+Shift+P` → `Python: Select Interpreter`). The terminal will
+auto-activate it.
+
+**Option D — Claude Code:**
+Claude Code auto-detects `.venv/bin/python` (Linux) or `.venv/Scripts/python.exe`
+(Windows) at the project root. The skill's `SKILL.md` Step 0 uses `AMS_PYTHON`
+to find it — no manual activation needed when Claude Code runs the scripts.
+
+### 2. Configure bridge connection
 
 ```bash
-virtuoso-bridge init             # creates ~/.virtuoso-bridge/.env
+virtuoso-bridge init             # creates ~/.virtuoso-bridge/.env template
 # Edit ~/.virtuoso-bridge/.env with your server details:
 #   VB_REMOTE_HOST=<eda-server>
 #   VB_REMOTE_USER=<your user>
@@ -131,33 +132,33 @@ virtuoso-bridge start            # opens SSH tunnel + deploys the daemon
 virtuoso-bridge status           # confirm: tunnel ✓  daemon ✓
 ```
 
-Finally, load the daemon SKILL file in Virtuoso CIW (once per Virtuoso session).
+Load the daemon SKILL file in Virtuoso CIW (once per Virtuoso session).
 `virtuoso-bridge start` prints the exact path — it looks like:
 
 ```skill
 load("/tmp/virtuoso_bridge_<user>/virtuoso_bridge/virtuoso_setup.il")
 ```
 
-The skill's runtime (`SKILL.md` Step 0) auto-detects `.venv/bin/python` (Linux)
-or `.venv/Scripts/python.exe` (Windows) and prefers it over system `python3`.
-
-### 3. Configure T28's `.env` and `site_local.csh` (see [Configuration](#configuration))
+### 3. Configure T28's `.env` and `site_local.csh`
 
 Copy the provided templates and edit with your site-specific values:
 
 ```bash
-# Skill runtime config (CDS_LIB_PATH_28, AMS_OUTPUT_ROOT, etc.)
-cp .env.example .env
-# Edit .env with your paths
+# Project-level .env (bridge + T28 config combined)
+# If your project root already has a .env from virtuoso-bridge init,
+# just add the T28 variables to it:
+cp .env.example .env             # project root .env.example
+# Edit .env — add CDS_LIB_PATH_28, AMS_OUTPUT_ROOT, etc.
 
 # Calibre / PDK paths (MGC_HOME, PDK_LAYERMAP_28, incFILE_28, etc.)
-cd assets/external_scripts/calibre
+cd .claude/skills/io-ring-orchestrator-T28/assets/external_scripts/calibre
 cp site_local.csh.example site_local.csh
 # Edit site_local.csh with your site's paths and source your cshrc files
 ```
 
-Only T28-specific paths (`CDS_LIB_PATH_28`, `AMS_OUTPUT_ROOT`) go in `.env`.
-The bridge connection lives in `~/.virtuoso-bridge/.env`, already configured in Step 0.
+The project `.env` holds both bridge connection vars (`VB_REMOTE_HOST`, etc.)
+and T28-specific vars (`CDS_LIB_PATH_28`, `AMS_OUTPUT_ROOT`, `VB_FS_MODE`).
+Alternatively, bridge vars can live in `~/.virtuoso-bridge/.env` (user-level).
 Calibre/PDK paths go in `site_local.csh` — do **not** edit `env_common.csh`.
 
 ### 4. Verify the installation
@@ -165,7 +166,8 @@ Calibre/PDK paths go in `site_local.csh` — do **not** edit `env_common.csh`.
 ```bash
 virtuoso-bridge status                          # tunnel + daemon
 
-# From the skill directory (.venv activated):
+# From the skill directory (project .venv activated):
+cd .claude/skills/io-ring-orchestrator-T28
 python scripts/check_virtuoso_connection.py     # end-to-end SKILL round-trip
 ```
 
@@ -178,9 +180,9 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 
 | Step | Action |
 |---|---|
-| Create `.venv` | `python -m venv .venv` in the skill directory |
-| Install skill deps | `.venv/bin/pip install -r requirements.txt` |
-| Install bridge into skill venv | `.venv/bin/pip install -e /path/to/virtuoso-bridge-lite` |
+| Create project `.venv` | `python -m venv .venv` at project root |
+| Install bridge into project venv | `.venv/bin/pip install -e /path/to/virtuoso-bridge-lite` |
+| Install skill deps into project venv | `.venv/bin/pip install -r .claude/skills/io-ring-orchestrator-T28/requirements.txt` |
 | Initialize bridge | `virtuoso-bridge init` (creates `~/.virtuoso-bridge/.env` template) |
 | Start bridge | `virtuoso-bridge start` |
 | Detect filesystem mode | Auto-detected — Windows → `remote`, NFS probe → `shared` |
@@ -196,7 +198,7 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 | `VB_REMOTE_USER` | `~/.virtuoso-bridge/.env` | "What is your SSH username on the EDA server?" |
 | `VB_REMOTE_PORT` | `~/.virtuoso-bridge/.env` | "SSH port? (default: 22)" |
 | Jump host | `~/.virtuoso-bridge/.env` | "Do you connect through a jump host or bastion? If so, provide hostname and user." |
-| `CDS_LIB_PATH_28` | T28 project `.env` | "What is the **remote** Linux path to your T28 `cds.lib`?" |
+| `CDS_LIB_PATH_28` | Project `.env` | "What is the **remote** Linux path to your T28 `cds.lib`?" |
 | `MGC_HOME` | `site_local.csh` | "Where is Calibre installed on the EDA server? (e.g. `/tools/mentor/calibre/...`)" |
 | `PDK_LAYERMAP_28` | `site_local.csh` | "Path to the T28 PDK layer map file on the EDA server?" |
 | `incFILE_28` | `site_local.csh` | "Path to the T28 LVS include file (`source.added`) on the EDA server?" |
@@ -206,9 +208,9 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 
 | Variable | Config file | Default | What to ask |
 |---|---|---|---|
-| `VB_FS_MODE` | T28 project `.env` | Auto-detect | "Filesystem mode: `shared` (NFS) or `remote`? (default: auto-detect)" |
-| `AMS_OUTPUT_ROOT` | T28 project `.env` | `./output` | "Where should generated outputs go? (default: `./output`)" |
-| `AMS_IO_AGENT_PATH` | T28 project `.env` | — | "Workspace root path? (only needed if `AMS_OUTPUT_ROOT` is not set)" |
+| `VB_FS_MODE` | Project `.env` | Auto-detect | "Filesystem mode: `shared` (NFS) or `remote`? (default: auto-detect)" |
+| `AMS_OUTPUT_ROOT` | Project `.env` | `./output` | "Where should generated outputs go? (default: `./output`)" |
+| `AMS_IO_AGENT_PATH` | Project `.env` | — | "Workspace root path? (only needed if `AMS_OUTPUT_ROOT` is not set)" |
 
 > **Tip for agents:** After collecting the "Must ask" values, write them into the
 > appropriate config files, then run the automatable steps. End with the verify
@@ -223,17 +225,17 @@ Each is independent — configure only what applies to your setup.
 
 ---
 
-### 1. T28 Project `.env` — Skill Runtime Variables
+### 1. Project `.env` — Runtime Variables (Bridge + T28)
 
-Copy the template and edit with your site-specific values:
+Located at the project root. Holds both bridge connection config and
+T28-specific variables in a single file. If `virtuoso-bridge init` created
+`~/.virtuoso-bridge/.env`, you can merge those values into this file instead
+(the skill's `bridge_utils.py` searches both locations).
 
 ```bash
 cp .env.example .env
 # Then edit .env with your paths
 ```
-
-This file holds **only T28-specific** config. The bridge connection is
-managed separately (see section 2 below).
 
 **Required:**
 
@@ -277,12 +279,16 @@ Controls how files are exchanged between your machine and the compute server.
 
 ---
 
-### 2. Bridge `.env` — Virtuoso Connection
+### 2. Bridge `.env` — Virtuoso Connection (can merge into project `.env`)
 
-Managed by `virtuoso-bridge init`. Lives at `~/.virtuoso-bridge/.env`.
+Created by `virtuoso-bridge init` at `~/.virtuoso-bridge/.env`.
 Contains SSH and tunnel settings (`VB_REMOTE_HOST`, `VB_REMOTE_USER`, ports, jump host, etc.).
 
-**Resolution priority** (used by `bridge_utils.py::_load_vb_env()`):
+**You can keep bridge vars in either location:**
+- `~/.virtuoso-bridge/.env` (user-level, shared across projects)
+- Project root `.env` (project-level, co-located with T28 vars)
+
+Both work — the resolution priority picks the first match:
 
 1. **`$VB_ENV_FILE`** — absolute path to any `.env` file (explicit override)
 2. **Project-level** — nearest `.env` containing `VB_REMOTE_HOST` or `VB_LOCAL_PORT`, searching from cwd upward
@@ -376,9 +382,10 @@ Variables that are **auto-derived** and do not need manual editing:
 ```text
 io-ring-orchestrator-T28/
 │
-├── .env.example                      # Template — copy to .env and edit (DO NOT edit .env.example)
-├── .env                              # Runtime configuration (copied from .env.example, gitignored)
-├── requirements.txt                  # Python dependencies
+├── .env.example                      # Skill-local .env template (optional override; project root .env preferred)
+├── requirements.txt                  # Python dependencies (install into project .venv)
+├── SKILL.md                          # Skill behavior contract and step-by-step workflow
+├── README.md                         # This file
 ├── SKILL.md                          # Skill behavior contract and step-by-step workflow
 ├── README.md                         # This file
 │
