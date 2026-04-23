@@ -80,11 +80,18 @@ def parse_pex_capacitance(netlist_file: Path) -> str:
 def main():
     from assets.core.layout.device_classifier import _normalize_process_node
     from assets.utils.bridge_utils import (
+        check_bridge_installed,
         open_cell_view_by_type,
         ui_redraw,
         execute_csh_script,
         get_current_design,
     )
+
+    # Early check — fail fast if bridge is not installed
+    ok, info = check_bridge_installed()
+    if not ok:
+        print(f"❌ {info}")
+        sys.exit(2)
 
     # Set output root
     os.environ.setdefault("AMS_OUTPUT_ROOT", str((Path(os.getcwd()) / "output").resolve(strict=False)))

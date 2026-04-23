@@ -18,8 +18,6 @@ import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 # Windows consoles default to cp/gbk; force UTF-8 so emojis in diagnostic
 # output don't raise UnicodeEncodeError.
 try:
@@ -32,48 +30,6 @@ except (AttributeError, OSError):
 skill_dir = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(skill_dir))
 
-# Load skill-local .env so checks don't depend on caller's cwd.
-env_file = skill_dir / ".env"
-if env_file.exists():
-    load_dotenv(dotenv_path=env_file, override=False)
-else:
-    load_dotenv(override=False)
-
-
-def _load_vb_env() -> None:
-    """Pre-load virtuoso-bridge-lite connection config.
-
-    Priority:
-      1. $VB_ENV_FILE env var (explicit path)
-      2. Nearest .env with VB vars, walking cwd upward (project-level)
-      3. ~/.virtuoso-bridge/.env (user-level fallback)
-    """
-    # 1. Explicit override
-    explicit = os.getenv("VB_ENV_FILE", "").strip()
-    if explicit:
-        p = Path(explicit).expanduser()
-        if p.is_file():
-            load_dotenv(dotenv_path=str(p), override=True)
-            return
-
-    # 2. Project-level
-    cwd = Path.cwd().resolve()
-    for parent in [cwd, *cwd.parents]:
-        candidate = parent / ".env"
-        if candidate.is_file():
-            try:
-                text = candidate.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            if "VB_REMOTE_HOST" in text or "VB_LOCAL_PORT" in text:
-                load_dotenv(dotenv_path=str(candidate), override=True)
-                return
-
-    # 3. User-level fallback
-    user_env = Path.home() / ".virtuoso-bridge" / ".env"
-    if user_env.is_file():
-        load_dotenv(dotenv_path=str(user_env), override=True)
-
 
 def check_via_virtuoso_bridge() -> tuple[bool, list]:
     """Check Virtuoso connection using virtuoso-bridge-lite.
@@ -81,6 +37,8 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
     Returns:
         (success, report_lines) tuple
     """
+    from assets.utils.bridge_utils import _load_vb_env
+
     report = []
     report.append("Bridge Type: virtuoso-bridge-lite")
     report.append("")
@@ -93,7 +51,7 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
         report.append("❌ Virtuoso Connection: FAILED")
         report.append("• virtuoso-bridge is not installed")
         report.append("• Install with: pip install -e /path/to/virtuoso-bridge-lite")
-        report.append("• See README.md > Prerequisites for full instructions")
+        report.append("  (into the T28 skill's .venv — see README Step 2)")
         return False, report
 
     try:
@@ -139,6 +97,8 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
 def _resolve_vb_env_source() -> tuple[str, str]:
     """Return (label, path) of the .env file _load_vb_env() will use, or
     ('none', '') if no VB config is found anywhere."""
+    from assets.utils.bridge_utils import _load_vb_env as _check_env
+
     explicit = os.getenv("VB_ENV_FILE", "").strip()
     if explicit:
         p = Path(explicit).expanduser()
@@ -172,6 +132,7 @@ def check_environment() -> list:
     except ImportError:
         report.append("virtuoso-bridge: NOT INSTALLED")
         report.append("  → Install with: pip install -e /path/to/virtuoso-bridge-lite")
+        report.append("    (into the T28 skill's .venv — see README Step 2)")
         report.append("")
         return report
 
@@ -221,6 +182,7 @@ def print_troubleshooting(success: bool) -> None:
     print("  4. Check ~/.virtuoso-bridge/.env has VB_REMOTE_HOST / VB_REMOTE_USER etc.")
     print("  5. If the package is missing:")
     print("       pip install -e /path/to/virtuoso-bridge-lite")
+    print("     (install into the T28 skill's .venv — see README Step 2)")
 
 
 def main():

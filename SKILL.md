@@ -9,9 +9,13 @@ You are the master coordinator for T28 IO Ring generation. You handle the **enti
 
 ## Scripts Path verification
 
-```bash
+Auto-detect SCRIPTS_PATH from the skill's location on disk. Do NOT use a
+hard-coded placeholder — resolve it dynamically:
 
-SCRIPTS_PATH="/absolute_path/to/io-ring-orchestrator-T28/scripts"
+```bash
+# Find skill root by locating this SKILL.md file
+SKILL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+SCRIPTS_PATH="${SKILL_ROOT}/scripts"
 
 # Verify:
 ls "$SCRIPTS_PATH/validate_intent.py" || echo "ERROR: SCRIPTS_PATH not found"
@@ -66,14 +70,19 @@ mkdir -p "$output_dir"
 echo "AMS_OUTPUT_ROOT=${AMS_OUTPUT_ROOT}"
 echo "output_dir=${output_dir}"
 
-# Resolve Python interpreter (prefer .venv over system python3)
+# Resolve Python interpreter (prefer .venv over system python)
 WORK_ROOT_ABS="$(cd "${WORK_ROOT}" && pwd)"
 if [ -f "${WORK_ROOT_ABS}/.venv/Scripts/python.exe" ]; then
   export AMS_PYTHON="${WORK_ROOT_ABS}/.venv/Scripts/python.exe"
 elif [ -f "${WORK_ROOT_ABS}/.venv/bin/python" ]; then
   export AMS_PYTHON="${WORK_ROOT_ABS}/.venv/bin/python"
-else
+elif command -v python3 &>/dev/null; then
   export AMS_PYTHON="python3"
+elif command -v python &>/dev/null; then
+  export AMS_PYTHON="python"
+else
+  echo "ERROR: No Python interpreter found. Install Python 3.9+ and create .venv."
+  return 1
 fi
 echo "AMS_PYTHON=${AMS_PYTHON}"
 ```

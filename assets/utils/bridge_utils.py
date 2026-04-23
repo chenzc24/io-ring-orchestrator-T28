@@ -99,6 +99,26 @@ def _get_ssh():
     return SSHClient.from_env()
 
 
+def check_bridge_installed() -> tuple[bool, str]:
+    """Check whether virtuoso-bridge-lite is importable without calling it.
+
+    Returns (True, version_string) on success, or (False, error_message).
+    Use this for early validation in scripts before starting long operations.
+    """
+    try:
+        import virtuoso_bridge
+        ver = getattr(virtuoso_bridge, "__version__", "unknown")
+        return True, ver
+    except ImportError as e:
+        return False, (
+            "virtuoso-bridge is not installed in this Python environment.\n"
+            "Install it into the T28 skill's .venv:\n"
+            "  .venv/bin/pip install -e /path/to/virtuoso-bridge-lite\n"
+            "See README.md > Installation > Step 2.\n"
+            f"Original error: {e}"
+        )
+
+
 def rb_exec(skill: str, timeout: int = 30) -> str:
     """Execute SKILL code via virtuoso-bridge-lite VirtuosoClient.
 

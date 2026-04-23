@@ -157,10 +157,17 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
 
 def main():
     from assets.utils.bridge_utils import (
+        check_bridge_installed,
         ui_redraw,
         ui_zoom_absolute_scale,
         load_script_and_take_screenshot,
     )
+
+    # Early check — fail fast if bridge is not installed
+    ok, info = check_bridge_installed()
+    if not ok:
+        print(f"❌ {info}")
+        sys.exit(2)
 
     # Parse arguments
     if len(sys.argv) < 4:

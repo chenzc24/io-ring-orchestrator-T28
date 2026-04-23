@@ -45,7 +45,7 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 | Requirement | Notes |
 |---|---|
 | Python 3.9+ | Matches virtuoso-bridge-lite's requirement |
-| **virtuoso-bridge-lite ≥ 0.6** | **Required.** Provides `VirtuosoClient` (TCP to Virtuoso daemon) and `SSHClient` (file upload + remote shell). Install once per machine — see Step 0 below. |
+| **virtuoso-bridge-lite ≥ 0.6** | **Required.** Provides `VirtuosoClient` (TCP to Virtuoso daemon) and `SSHClient` (file upload + remote shell). Must be installed into the T28 skill's `.venv` — see Step 2 below. |
 | Cadence Virtuoso | Required for SKILL execution and screenshot capture |
 | Calibre (Mentor/Siemens) | Required for DRC, LVS, PEX — `MGC_HOME` must point to your installation |
 | TSMC 28nm PDK | Layer map, LVS include files, and `cds.lib` are needed for verification |
@@ -58,21 +58,64 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 ### 0. Install virtuoso-bridge-lite (once per machine)
 
 This skill depends on **virtuoso-bridge-lite** for everything that touches Virtuoso
-or the EDA server. Install it first — in its own virtual environment so it won't
-clash with other bridges or skills on the same machine:
+or the EDA server. Clone it first (you'll install it into the T28 skill's venv in Step 2):
 
 ```bash
 git clone <your virtuoso-bridge-lite repo>
-cd virtuoso-bridge-lite
+# Note the clone path — you'll need it in Step 2.
+```
+
+### 1. Clone or copy the skill into your Claude Code skills directory
+
+**Project-level (recommended for team use):**
+```bash
+# From your project root:
+mkdir -p .claude/skills
+cp -r io-ring-orchestrator-T28 .claude/skills/
+```
+
+**User-level (available across all projects):**
+```bash
+mkdir -p ~/.claude/skills
+cp -r io-ring-orchestrator-T28 ~/.claude/skills/
+```
+
+Claude Code discovers skills by scanning the `.claude/skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
+
+### 2. Install Python dependencies (skill + bridge in one venv)
+
+> **Important:** The T28 skill and virtuoso-bridge-lite **must share the same
+> virtual environment**. The skill imports `virtuoso_bridge` at runtime, so
+> the bridge package must be installed into the skill's `.venv`. Do NOT create
+> separate venvs for each.
+
+Run this from the skill destination directory after copying:
+
+```bash
+# Project-level install:
+cd .claude/skills/io-ring-orchestrator-T28
 
 python -m venv .venv
 source .venv/bin/activate        # Linux / Mac
-# .venv\Scripts\activate         # Windows (Git Bash or PowerShell)
+# .venv\Scripts\activate         # Windows
 
-pip install -e .
+# Install T28 skill dependencies
+pip install -r requirements.txt
 
-# Verify:
+# Install virtuoso-bridge-lite into the SAME venv (edit the path to your clone)
+pip install -e /path/to/virtuoso-bridge-lite
+
+# Verify both are installed:
+python -c "import virtuoso_bridge; print(virtuoso_bridge.__version__)"
 virtuoso-bridge --version        # should print 0.6.x or later
+```
+
+Or, user-level install (one-liner):
+```bash
+cd ~/.claude/skills/io-ring-orchestrator-T28
+python -m venv .venv && source .venv/bin/activate && \
+  pip install -r requirements.txt && \
+  pip install -e /path/to/virtuoso-bridge-lite
 ```
 
 Then configure the remote connection once:
@@ -95,52 +138,27 @@ Finally, load the daemon SKILL file in Virtuoso CIW (once per Virtuoso session).
 load("/tmp/virtuoso_bridge_<user>/virtuoso_bridge/virtuoso_setup.il")
 ```
 
-### 1. Clone or copy the skill into your Claude Code skills directory
-
-**Project-level (recommended for team use):**
-```bash
-# From your project root:
-mkdir -p .claude/skills
-cp -r io-ring-orchestrator-T28 .claude/skills/
-```
-
-**User-level (available across all projects):**
-```bash
-mkdir -p ~/.claude/skills
-cp -r io-ring-orchestrator-T28 ~/.claude/skills/
-```
-
-Claude Code discovers skills by scanning the `.claude/skills/` directory at the project root and `~/.claude/skills/` for user-level skills. The skill is loaded when Claude Code starts in any project containing these paths.
-
-### 2. Install Python dependencies
-
-> **Why a `.venv`?** If you run multiple bridges or skills on the same machine,
-> each should have its own virtual environment to avoid dependency conflicts.
-
-Run this from the skill destination directory after copying:
-
-```bash
-# Project-level install:
-cd .claude/skills/io-ring-orchestrator-T28
-
-python -m venv .venv
-source .venv/bin/activate        # Linux / Mac
-# .venv\Scripts\activate         # Windows
-
-pip install -r requirements.txt
-
-# Or, user-level install:
-cd ~/.claude/skills/io-ring-orchestrator-T28
-python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-```
-
 The skill's runtime (`SKILL.md` Step 0) auto-detects `.venv/bin/python` (Linux)
 or `.venv/Scripts/python.exe` (Windows) and prefers it over system `python3`.
 
-### 3. Configure T28's `.env` (see [Configuration](#configuration))
+### 3. Configure T28's `.env` and `site_local.csh` (see [Configuration](#configuration))
 
-Only T28-specific paths (`CDS_LIB_PATH_28`, `AMS_OUTPUT_ROOT`) go here. The bridge
-connection lives in `~/.virtuoso-bridge/.env`, already configured in Step 0.
+Copy the provided templates and edit with your site-specific values:
+
+```bash
+# Skill runtime config (CDS_LIB_PATH_28, AMS_OUTPUT_ROOT, etc.)
+cp .env.example .env
+# Edit .env with your paths
+
+# Calibre / PDK paths (MGC_HOME, PDK_LAYERMAP_28, incFILE_28, etc.)
+cd assets/external_scripts/calibre
+cp site_local.csh.example site_local.csh
+# Edit site_local.csh with your site's paths and source your cshrc files
+```
+
+Only T28-specific paths (`CDS_LIB_PATH_28`, `AMS_OUTPUT_ROOT`) go in `.env`.
+The bridge connection lives in `~/.virtuoso-bridge/.env`, already configured in Step 0.
+Calibre/PDK paths go in `site_local.csh` — do **not** edit `env_common.csh`.
 
 ### 4. Verify the installation
 
@@ -160,12 +178,14 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 
 | Step | Action |
 |---|---|
-| Create `.venv` | `python -m venv .venv` in each skill/bridge directory |
-| Install dependencies | `.venv/bin/pip install -r requirements.txt` |
+| Create `.venv` | `python -m venv .venv` in the skill directory |
+| Install skill deps | `.venv/bin/pip install -r requirements.txt` |
+| Install bridge into skill venv | `.venv/bin/pip install -e /path/to/virtuoso-bridge-lite` |
 | Initialize bridge | `virtuoso-bridge init` (creates `~/.virtuoso-bridge/.env` template) |
 | Start bridge | `virtuoso-bridge start` |
 | Detect filesystem mode | Auto-detected — Windows → `remote`, NFS probe → `shared` |
 | Resolve output path | Defaults to `./output` if neither `AMS_OUTPUT_ROOT` nor `AMS_IO_AGENT_PATH` is set |
+| Copy config templates | `cp .env.example .env` and `cp site_local.csh.example site_local.csh` |
 | Verify connection | `python scripts/check_virtuoso_connection.py` |
 
 #### Must ask user
@@ -177,9 +197,10 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 | `VB_REMOTE_PORT` | `~/.virtuoso-bridge/.env` | "SSH port? (default: 22)" |
 | Jump host | `~/.virtuoso-bridge/.env` | "Do you connect through a jump host or bastion? If so, provide hostname and user." |
 | `CDS_LIB_PATH_28` | T28 project `.env` | "What is the **remote** Linux path to your T28 `cds.lib`?" |
-| `MGC_HOME` | `env_common.csh` | "Where is Calibre installed on the EDA server? (e.g. `/home/mentor/calibre/...`)" |
-| `PDK_LAYERMAP_28` | `env_common.csh` | "Path to the T28 PDK layer map file on the EDA server?" |
-| `incFILE_28` | `env_common.csh` | "Path to the T28 LVS include file (`source.added`) on the EDA server?" |
+| `MGC_HOME` | `site_local.csh` | "Where is Calibre installed on the EDA server? (e.g. `/tools/mentor/calibre/...`)" |
+| `PDK_LAYERMAP_28` | `site_local.csh` | "Path to the T28 PDK layer map file on the EDA server?" |
+| `incFILE_28` | `site_local.csh` | "Path to the T28 LVS include file (`source.added`) on the EDA server?" |
+| Cadence/Mentor cshrc | `site_local.csh` | "What are the paths to your site's Cadence and Mentor setup scripts? (e.g. `/home/cshrc/.cshrc.cadence`)" |
 
 #### Ask only if user wants to override defaults
 
@@ -197,21 +218,28 @@ automatically. Use this checklist to decide what to do vs. what to ask.
 
 ## Configuration
 
-Three configuration files control different aspects of the system.
-Each is independent — edit only what applies to your setup.
+Four configuration layers control different aspects of the system.
+Each is independent — configure only what applies to your setup.
 
 ---
 
 ### 1. T28 Project `.env` — Skill Runtime Variables
 
-Create or edit `.env` in the skill root (`io-ring-orchestrator-T28/.env`).
-This file holds **only T28-specific** config.
+Copy the template and edit with your site-specific values:
+
+```bash
+cp .env.example .env
+# Then edit .env with your paths
+```
+
+This file holds **only T28-specific** config. The bridge connection is
+managed separately (see section 2 below).
 
 **Required:**
 
-| Variable | Description |
-|---|---|
-| `CDS_LIB_PATH_28` | Absolute **remote** path to `cds.lib` for T28 (read by Calibre csh wrappers) |
+| Variable | Description | Example |
+|---|---|---|
+| `CDS_LIB_PATH_28` | Absolute **remote** path to `cds.lib` for T28 (read by Calibre csh wrappers) | `/home/youruser/TSMC28/llm_IO/cds.lib` |
 
 **Optional — Filesystem Mode:**
 
@@ -267,38 +295,73 @@ python scripts/check_virtuoso_connection.py   # prints the resolved source
 
 ---
 
-### 3. `env_common.csh` — Calibre / PDK Paths
+### 3. `site_local.csh` — Site-Specific Calibre / Cadence / PDK Paths
 
-Located at `assets/external_scripts/calibre/env_common.csh`. Sourced by all Calibre
-wrapper scripts (`run_drc.csh`, `run_lvs.csh`, `run_pex.csh`). **Update these
-paths to match your site installation before running DRC/LVS/PEX:**
+**This is the recommended way to customize paths for your site.** Located at
+`assets/external_scripts/calibre/site_local.csh`. Copy the template and edit:
 
-```csh
-# Calibre installation root
-setenv MGC_HOME /home/mentor/calibre/calibre2022/aoj_cal_2022.1_36.16
-
-# T28 PDK layer map (for strmout / XStream GDS export)
-setenv PDK_LAYERMAP_28 /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/tsmcN28.layermap
-
-# LVS include file for 28nm (lists additional source files for Calibre LVS)
-setenv incFILE_28 /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/../Calibre/lvs/source.added
+```bash
+cd assets/external_scripts/calibre
+cp site_local.csh.example site_local.csh
+# Then edit site_local.csh with your site's paths
 ```
 
-**Variables that need site-specific paths:**
+`site_local.csh` is sourced by `env_common.csh` **before** the built-in defaults
+are set, so any variables you define here take precedence. This file is
+intentionally excluded from version control — each user/site maintains their own.
 
-| Variable | Description | Must be set by user |
+**Variables you should set here:**
+
+| Variable | Description | Example |
 |---|---|---|
-| `MGC_HOME` | Calibre installation root | Yes |
-| `PDK_LAYERMAP_28` | T28 PDK layer map file | Yes |
-| `incFILE_28` | T28 LVS include file (`source.added`) | Yes |
-| `CDS_LIB_PATH_28` | T28 `cds.lib` path | Set via `.env` or here |
+| `MGC_HOME` | Calibre installation root | `/tools/mentor/calibre/aoj_cal_2022.1` |
+| `PDK_LAYERMAP_28` | T28 PDK layer map file | `/tools/pdk/tsmc28n/tsmcN28/tsmcN28.layermap` |
+| `incFILE_28` | T28 LVS include file (`source.added`) | `/tools/pdk/tsmc28n/Calibre/lvs/source.added` |
+| `CDS_LIB_PATH_28` | T28 `cds.lib` path (alternative to `.env`) | `/home/youruser/TSMC28/cds.lib` |
+
+**You should also source your site's Cadence/Mentor setup scripts here**, so that
+`strmout`, `si`, and `calibre` are on PATH and license variables are configured:
+
+```csh
+# In site_local.csh:
+source /your/site/cshrc/.cshrc.cadence
+source /your/site/cshrc/.cshrc.mentor
+setenv MGC_HOME /your/site/calibre/install/path
+setenv PDK_LAYERMAP_28 /your/site/tsmc28n/tsmcN28.layermap
+setenv incFILE_28 /your/site/tsmc28n/Calibre/lvs/source.added
+```
+
+---
+
+### 4. `env_common.csh` — Calibre / PDK Defaults
+
+Located at `assets/external_scripts/calibre/env_common.csh`. Sourced by all Calibre
+wrapper scripts (`run_drc.csh`, `run_lvs.csh`, `run_pex.csh`).
+
+**All paths in `env_common.csh` are overridable** — each `setenv` is guarded by
+`if ( ! $?VAR_NAME )`, so if you set the variable in `site_local.csh`, your shell
+environment, or your site cshrc, the built-in default is skipped. The shipped
+defaults match the original development site but will not work on other sites
+without overrides.
+
+**How path resolution works for each variable:**
+
+| Variable | Resolution order |
+|---|---|
+| `MGC_HOME` | 1. `site_local.csh` / shell env → 2. Built-in default |
+| `PDK_LAYERMAP_28` | 1. `site_local.csh` / shell env → 2. Built-in default |
+| `incFILE_28` | 1. `site_local.csh` / shell env → 2. Built-in default |
+| `CDS_LIB_PATH_28` | 1. Shell env → 2. `site_local.csh` → 3. Project `.env` file → 4. Error |
+
+**Cadence/Mentor cshrc scripts** (`source /home/cshrc/.cshrc.cadence.*` and
+`.cshrc.mentor`) are sourced **conditionally** — if the file does not exist on
+your site, the script continues without error. To add your own setup scripts,
+place them in `site_local.csh`.
 
 Variables that are **auto-derived** and do not need manual editing:
 
 | Variable | Value |
 |---|---|
-| `PDK_LAYERMAP_180` | T180 layer map (not used for T28 flow) |
-| `incFILE_180` | T180 LVS include (not used for T28 flow) |
 | `CALIBRE_RULE_FILE_28` | DRC rule file, relative to `calibre/` directory |
 | `LVS_RULE_FILE_28` | LVS rule file, relative to `calibre/` directory |
 | `DRC_RULE_FILE_28` | DRC rule file, relative to `calibre/` directory |
@@ -313,7 +376,8 @@ Variables that are **auto-derived** and do not need manual editing:
 ```text
 io-ring-orchestrator-T28/
 │
-├── .env                              # Runtime configuration (copy and edit this)
+├── .env.example                      # Template — copy to .env and edit (DO NOT edit .env.example)
+├── .env                              # Runtime configuration (copied from .env.example, gitignored)
 ├── requirements.txt                  # Python dependencies
 ├── SKILL.md                          # Skill behavior contract and step-by-step workflow
 ├── README.md                         # This file
@@ -359,7 +423,8 @@ io-ring-orchestrator-T28/
 │   │
 │   └── external_scripts/
 │       └── calibre/                  # Calibre DRC/LVS/PEX csh wrappers
-│           ├── env_common.csh        # Shared environment (edit PDK paths here)
+│           ├── env_common.csh        # Shared environment (defaults, overridable)
+│           ├── site_local.csh.example # Template — copy to site_local.csh and edit
 │           ├── run_drc.csh
 │           ├── run_lvs.csh
 │           ├── run_pex.csh
@@ -700,7 +765,8 @@ All outputs are written to `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
 
 **DRC/LVS script fails with path errors:**
 - Verify `CDS_LIB_PATH_28` is set in `.env` or your shell environment
-- Verify `MGC_HOME`, `PDK_LAYERMAP_28`, and `incFILE_28` in `env_common.csh`
+- Verify `MGC_HOME`, `PDK_LAYERMAP_28`, and `incFILE_28` — set them in `site_local.csh` (do **not** edit `env_common.csh`)
+- Ensure your site's Cadence/Mentor cshrc is sourced in `site_local.csh`
 - Ensure `csh` is available (`which csh`)
 
 **Outputs written to unexpected location:**

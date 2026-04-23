@@ -10,12 +10,16 @@
 #   ./run_drc.csh LLM_Layout_Design test_DRC layout
 #   ./run_drc.csh LLM_Layout_Design test_DRC layout T28
 
-# Initialize environment
-source /home/cshrc/.cshrc.cadence.IC618SP201
-source /home/cshrc/.cshrc.mentor                #wei
-
-# source /home/cshrc/.cshrc.cadence.sui
-# source /home/cshrc/.cshrc.mentor25.sui  #sui
+# Initialize environment — source site Cadence/Mentor setup if available.
+# These scripts add Calibre/strmout to PATH and set license variables.
+# On most EDA servers they live under /home/cshrc/ or similar.
+# If your site uses different paths, set them in site_local.csh.
+if ( -f /home/cshrc/.cshrc.cadence.IC618SP201 ) then
+    source /home/cshrc/.cshrc.cadence.IC618SP201
+endif
+if ( -f /home/cshrc/.cshrc.mentor ) then
+    source /home/cshrc/.cshrc.mentor
+endif
 
 # Determine script directory (robust for direct csh/run and remote csh() invocation)
 set SCRIPT_DIR = ""

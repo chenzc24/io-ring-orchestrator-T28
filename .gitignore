@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# User-specific configuration (copied from .example templates)
+.env
+assets/external_scripts/calibre/site_local.csh
