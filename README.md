@@ -30,6 +30,35 @@ communication (TCP + SSH). The project layout after setup:
             └── site_local.csh      ← Calibre/PDK paths on the EDA server (you fill this in)
 ```
 
+### How the system works
+
+```
+Claude Code (your machine)
+       │
+       │  1. Generates JSON + SKILL scripts locally
+       │
+       ▼
+virtuoso-bridge-lite
+       │
+       ├─ TCP socket ──────────────► Virtuoso daemon (EDA server)
+       │                              loads .il, returns results
+       │
+       └─ SSH tunnel ──────────────► EDA server
+              │
+              ├─ uploads .il file → Virtuoso load()
+              ├─ uploads calibre/ scripts → runs csh
+              └─ downloads reports / screenshots
+```
+
+**Filesystem mode** controls how Calibre scripts and output files are exchanged:
+
+| Mode | When | Behavior |
+|---|---|---|
+| `remote` | Windows PC, or no NFS | Scripts uploaded to `/tmp/vb_t28_calibre/` via SSH; results downloaded back |
+| `shared` | Linux on same NFS as EDA server | Both machines see the same paths; Calibre reads/writes directly |
+
+Auto-detected: Windows path (`C:\...`) → `remote`; NFS probe → `shared`. Set `VB_FS_MODE` in `.env` to override.
+
 ---
 
 ## Prerequisites
@@ -101,6 +130,78 @@ Claude Code finds `.venv` automatically — no manual activation needed for skil
 
 ---
 
+## Workflow
+
+The skill runs a 12-step pipeline automatically:
+
+```
+1.  Parse input → create timestamped output directory
+2.  Build draft intent graph JSON (structure only)
+3.  Enrich draft → final intent graph (devices, pins, corners)
+4.  Reference-guided gate check (continuity, provider count, pin families)
+5.  Validate JSON (validate_intent.py)
+6.  Build confirmed config — optionally open Layout Editor (see below)
+7.  Generate schematic SKILL (.il)
+8.  Generate layout SKILL (.il)
+9.  Check Virtuoso connection
+10. Execute SKILL in Virtuoso + capture screenshots
+11. Run Calibre DRC
+12. Run Calibre LVS   [optional: PEX after LVS]
+```
+
+Output files land in `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
+`io_ring_intent_graph.json`, `io_ring_confirmed.json`, `io_ring_schematic.il`,
+`io_ring_layout.il`, `schematic_screenshot.png`, `layout_screenshot.png`,
+`drc_report.txt`, `lvs_report.txt`.
+
+---
+
+## Layout Editor (Step 6)
+
+Before generating SKILL scripts the skill asks:
+> *"Open Layout Editor or Skip?"* (no response within ~15 s → skip automatically)
+
+**If opened:** a browser launches on `localhost` showing the IO ring as an
+interactive SVG. Every pad, corner, and filler is draggable and editable.
+Click **"Confirm & Continue"** when done — edits are merged back into the
+confirmed config and the pipeline resumes.
+
+**Component colors:**
+
+| Category | Color | Examples |
+|---|---|---|
+| Analog IO / Power | Blue | `PDB3AC`, `PVDD3AC`, `PVSS1AC` |
+| Digital IO / Power | Green | `PDDW16SDGZ`, `PVDD1DGZ`, `PVSS1DGZ` |
+| Corners | Red | `PCORNERA_G`, `PCORNER_G` |
+| Fillers | Gray | `PFILLER10`, `PFILLER20` |
+| Inner pads | Dashed border | Double-ring inner row |
+
+**Key operations:** drag to move · click Inspector to edit properties · Ctrl+Z undo ·
+toolbar Add/Delete · Import/Export JSON · Confirm & Continue to proceed.
+
+---
+
+## T28 Device Reference
+
+| Signal type | Device | Notes |
+|---|---|---|
+| Analog IO | `PDB3AC` | Bidirectional analog pad |
+| Analog power provider | `PVDD3AC` / `PVSS3AC` | Default (TACVDD/TACVSS pins) |
+| Analog power provider (alt) | `PVDD3A` / `PVSS3A` | User-specified (TAVDD/TAVSS pins) |
+| Analog power consumer | `PVDD1AC` / `PVSS1AC` | Under 3AC provider |
+| Analog power consumer (alt) | `PVDD1A` / `PVSS1A` | Under 3A provider |
+| Ring ESD (analog) | `PVSS2A` | User-triggered; 3 pins: VSS + TAVSS + TAVDD |
+| Digital IO (default) | `PDDW16SDGZ` | 16-bit |
+| Digital IO (alt) | `PRUW08SDGZ` | 8-bit; user-specified |
+| Digital power (low VDD) | `PVDD1DGZ` | Standard digital power |
+| Digital ground (low VSS) | `PVSS1DGZ` | Standard digital ground |
+| Digital power (high VDD) | `PVDD2POC` | High-voltage digital power |
+| Digital ground (high VSS) | `PVSS2DGZ` | High-voltage digital ground |
+| Digital corner | `PCORNER_G` | Both adjacent pads digital |
+| Analog/mixed corner | `PCORNERA_G` | At least one adjacent pad analog |
+
+---
+
 ## Usage
 
 **Via Claude Code (natural language):**
@@ -111,23 +212,66 @@ Library: LLM_Layout_Design, Cell: IO_RING_test.
 ```
 Or explicitly: `Use io-ring-orchestrator-T28 to generate an IO ring with...`
 
-**Writing effective prompts** — the skill classifies signals by name pattern and
-voltage domain. For non-standard names, always specify explicitly:
+### Writing Effective Prompts
 
+The skill classifies signals by **name pattern** and **voltage domain assignment**.
+For non-standard names, always specify explicitly — it overrides all inference.
+
+**Required in every prompt:**
+- Signal list (in placement order)
+- Pads per side (e.g. `4 pads per side` or `top=4, bottom=4, left=2, right=2`)
+- Ring type: `single ring` or `double ring`
+- Placement order: `clockwise` or `counterclockwise`
+- Library and cell name
+
+**Signal classification (how the skill decides device type):**
+
+| Signal type | Auto-detected when | Device |
+|---|---|---|
+| Analog IO | Name matches analog patterns (VCM, CLKP, VREF…) or in analog domain | `PDB3AC` |
+| Analog power provider | First VDD/VSS in a domain range | `PVDD3AC` / `PVSS3AC` |
+| Analog power consumer | Other VDD/VSS in same domain | `PVDD1AC` / `PVSS1AC` |
+| Digital IO | Non-power signal not in any analog domain | `PDDW16SDGZ` |
+| Digital power | Exactly 4 unique names forming digital domain | `PVDD1DGZ` / `PVSS1DGZ` / `PVDD2POC` / `PVSS2DGZ` |
+| Corner | Inferred from adjacent pad types | `PCORNER_G` / `PCORNERA_G` |
+
+**Full recommended prompt:**
 ```
+Task: Generate IO ring schematic and layout for Cadence Virtuoso.
+4 pads per side. Single ring. Counterclockwise placement.
+
+Signals: VIN VSSIB VDDIB VCM D1 D2 D3 D4 VIOL GIOL VIOH GIOH
+
 Signal classification:
 - Analog IO: VIN, VCM
-- Analog power: VDDIB (provider), VSSIB (provider)
+- Analog power: VDDIB (VDD provider), VSSIB (VSS provider)
 - Digital IO: D1, D2, D3, D4 (outputs)
 - Digital power: VIOL (low VDD), GIOL (low VSS), VIOH (high VDD), GIOH (high VSS)
+
 Voltage domain: VDDIB/VSSIB → VIN, VCM
-Library: LLM_Layout_Design, Cell: IO_RING_4x4
+
+Technology: 28nm  |  Library: LLM_Layout_Design  |  Cell: IO_RING_4x4_mixed
 ```
 
-**Test cases:** `T28_Testbench/` contains 30 ready-made prompts. Run any:
+### Built-in Test Cases
+
+`T28_Testbench/` has **30 ready-made prompts** covering all die sizes and signal mixes.
+
 ```bash
-cat T28_Testbench/IO_28nm_3x3_single_ring_mixed.txt   # paste into Claude Code
+cat T28_Testbench/IO_28nm_3x3_single_ring_mixed.txt   # then paste into Claude Code
 ```
+
+| Case group | Die sizes | Ring | Signal mix |
+|---|---|---|---|
+| `*_3x3_*` to `*_7x7_*` | 3×3 → 7×7 | Single | Analog / Digital / Mixed |
+| `*_8x8_double_*` | 8×8 | Double | Analog / Digital / Mixed / Multi-voltage |
+| `*_10x6_*` | 10×6 | Single | Mixed (2 variants) |
+| `*_10x10_double_*` | 10×10 | Double | Multi-voltage |
+| `*_12x12_*` | 12×12 | Single + Double | Mixed / Multi-voltage (4 variants) |
+| `*_12x18_*` / `*_18x12_*` | 12×18, 18×12 | Double / Single | Mixed / Multi-voltage |
+| `*_18x18_*` | 18×18 | Single + Double | Multi-voltage |
+
+Compare output against `T28_Testbench/golden_output/<case>/` to verify correctness.
 
 ---
 
