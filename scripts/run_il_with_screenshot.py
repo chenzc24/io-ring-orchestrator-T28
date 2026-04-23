@@ -48,6 +48,23 @@ def _resolve_output_root() -> Path:
     return cwd_output.resolve(strict=False)
 
 
+def _verify_cellview(lib: str, cell: str, view: str) -> bool:
+    """Verify that the current edit cellView matches the requested lib/cell/view.
+
+    Returns True if cv points to the correct cellView, False otherwise.
+    This prevents loading .il scripts into the wrong cell and polluting existing work.
+    """
+    from assets.utils.bridge_utils import rb_exec
+
+    actual_lib = rb_exec('cv~>libName', timeout=10).strip().strip('"')
+    actual_cell = rb_exec('cv~>cellName', timeout=10).strip().strip('"')
+    actual_view = rb_exec('cv~>viewName', timeout=10).strip().strip('"')
+    if actual_lib == lib and actual_cell == cell and actual_view == view:
+        return True
+    print(f"   ❌ CellView mismatch! Expected {lib}/{cell}/{view}, got {actual_lib}/{actual_cell}/{actual_view}")
+    return False
+
+
 def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", save: bool = False) -> str:
     """Run IL file in Virtuoso.
 
@@ -55,7 +72,8 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
     before calling load() in Virtuoso.  This is required when running from Windows
     because Virtuoso (on Linux) cannot access local Windows paths directly.
 
-    Includes automatic retry (up to 2 attempts) to handle transient upload/execution failures.
+    Includes cellView verification before every load attempt to prevent writing
+    into the wrong cell and polluting existing work.
     """
     from assets.utils.bridge_utils import (
         open_cell_view_by_type,
@@ -65,18 +83,6 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
         load_skill_file,
         save_current_cellview,
     )
-
-    ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
-    if not ok:
-        return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
-
-    window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
-    if not window_ok:
-        return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
-
-    ui_redraw(timeout=10)
-    sleep(0.5)
-    rb_exec("cv = geGetEditCellView()", timeout=10)
 
     skill_path = Path(il_file_path)
     if not skill_path.exists():
@@ -91,10 +97,29 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
 
     # Upload to remote server then load — works for both local and remote Virtuoso.
     # The bridge daemon can return ok=False for large scripts due to TCP response
-    # timing: Virtuoso finishes executing but the daemon response arrives late or
-    # gets lost.  We verify by checking if instances were actually created.
+    # timing. We verify cellView identity before every load to prevent polluting
+    # other cells.
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
+        # Open and verify the correct cellView before each attempt
+        ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
+        if not ok:
+            return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
+
+        window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
+        if not window_ok:
+            return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
+
+        ui_redraw(timeout=10)
+        sleep(0.5)
+        rb_exec("cv = geGetEditCellView()", timeout=10)
+
+        # CRITICAL: Verify cv points to the requested cell, not some other cell
+        if not _verify_cellview(lib, cell, view):
+            return (f"❌ Error: CellView mismatch — refusing to load {skill_path.name} "
+                    f"into wrong cell. Expected {lib}/{cell}/{view}. "
+                    f"Close other cells in Virtuoso and retry.")
+
         ok = load_skill_file(str(skill_path.resolve()), timeout=300)
         if ok:
             if save:
@@ -104,9 +129,14 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
             return f"✅ il file {skill_path.name} executed successfully"
 
         # load_il returned False — but Virtuoso may still be executing or may have
-        # finished while the TCP response was lost.  Wait and check if instances exist.
+        # finished while the TCP response was lost.  Wait and verify.
         print(f"   ⚠️ Attempt {attempt}/{max_attempts} load_il returned False, waiting 5s then verifying...")
         sleep(5)
+
+        # Re-verify cellView is still correct before checking instances
+        if not _verify_cellview(lib, cell, view):
+            return (f"❌ Error: CellView shifted after failed load — {lib}/{cell}/{view} lost focus. "
+                    f"Aborting to prevent polluting other cells.")
 
         # Check if instances were actually created despite the False return
         inst_count = rb_exec(
@@ -118,13 +148,9 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
                 save_current_cellview(timeout=30)
             return f"✅ il file {skill_path.name} executed and saved successfully (verified after response loss)"
 
-        # Genuinely failed — reopen cellView for next attempt
+        # Genuinely failed — retry
         if attempt < max_attempts:
-            print(f"   No instances found, reopening cellView for retry...")
-            open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
-            ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
-            ui_redraw(timeout=10)
-            rb_exec("cv = geGetEditCellView()", timeout=10)
+            print(f"   No instances found, retrying...")
 
     return f"❌ il file {skill_path.name} execution failed after {max_attempts} attempts"
 
