@@ -353,83 +353,104 @@ class SkillGeneratorT28:
             # Digital power/ground pads are handled separately above with vias and configuration lines
             if device in ["PVDD1DGZ_V_G", "PVDD1DGZ_H_G", "PVSS1DGZ_V_G", "PVSS1DGZ_H_G"]:
                 continue
-            
+
             x, y = pad["position"]
             orient = pad["orientation"]
             is_input = pad["direction"] == "input"
-            
+            # PRUW08 input: both OEN and REN connect to VDD (high); PRUW08 output: same as PDDW16
+            is_pruw08 = "PRUW08" in device
+
             if orient == "R0":  # Bottom edge pad
                 base_y = y + ring_config["pad_height"] - 0.125
                 high_y = y + ring_config["pad_height"] + 0.5
                 low_y = y + ring_config["pad_height"] - 0.76
-                
+
                 # Create secondary line (use secondary_layer for 180nm, config_layer for 28nm)
                 secondary_wire_width = 0.26
                 if is_input:
-                    skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["REN"]} {base_y}) list({x + offsets["REN"]} {low_y})) {secondary_wire_width})')
+                    # Both PDDW16 and PRUW08 input: OEN→high; PRUW08 input: REN→high (VDD), PDDW16 input: REN→low (VSS)
+                    if is_pruw08:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["REN"]} {base_y}) list({x + offsets["REN"]} {high_y})) {secondary_wire_width})')
+                    else:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["REN"]} {base_y}) list({x + offsets["REN"]} {low_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["I"]} {base_y}) list({x + offsets["I"]} {low_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["OEN"]} {base_y}) list({x + offsets["OEN"]} {high_y})) {secondary_wire_width})')
                     pin_pos = f"list({x + offsets['C']} {base_y})"
                 else:
+                    # Both PDDW16 and PRUW08 output: REN→high, OEN→low
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["REN"]} {base_y}) list({x + offsets["REN"]} {high_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x + offsets["OEN"]} {base_y}) list({x + offsets["OEN"]} {low_y})) {secondary_wire_width})')
                     pin_pos = f"list({x + offsets['I']} {base_y})"
-                
+
                 # Create pin label
                 core_label = self._format_core_label(pad["name"])
                 skill_commands.append(f'dbCreateLabel(cv list("M4" "pin") {pin_pos} "{core_label}" "centerLeft" "R90" "roman" 2)')
-                
+
             elif orient == "R90":  # Right edge pad
                 base_x = x - ring_config["pad_height"] + 0.125
                 high_x = x - ring_config["pad_height"] - 0.5
                 low_x = x - ring_config["pad_height"] + 0.76
-                
+
                 # Create secondary line
                 secondary_wire_width = 0.26
                 if is_input:
-                    skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({low_x} {y + offsets["REN"]}) list({base_x} {y + offsets["REN"]})) {secondary_wire_width})')
+                    # Both PDDW16 and PRUW08 input: OEN→high; PRUW08 input: REN→high, PDDW16 input: REN→low
+                    if is_pruw08:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({high_x} {y + offsets["REN"]}) list({base_x} {y + offsets["REN"]})) {secondary_wire_width})')
+                    else:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({low_x} {y + offsets["REN"]}) list({base_x} {y + offsets["REN"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({low_x} {y + offsets["I"]}) list({base_x} {y + offsets["I"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({high_x} {y + offsets["OEN"]}) list({base_x} {y + offsets["OEN"]})) {secondary_wire_width})')
                     pin_pos = f"list({base_x} {y + offsets['C']})"
                 else:
+                    # Both PDDW16 and PRUW08 output: REN→high, OEN→low
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({high_x} {y + offsets["REN"]}) list({base_x} {y + offsets["REN"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({low_x} {y + offsets["OEN"]}) list({base_x} {y + offsets["OEN"]})) {secondary_wire_width})')
                     pin_pos = f"list({base_x} {y + offsets['I']})"
-                
+
                 # Create pin label
                 core_label = self._format_core_label(pad["name"])
                 skill_commands.append(f'dbCreateLabel(cv list("M4" "pin") {pin_pos} "{core_label}" "centerRight" "R0" "roman" 2)')
-            
+
             elif orient == "R180":  # Top edge pad
                 base_y = y - ring_config["pad_height"] + 0.125
                 high_y = y - ring_config["pad_height"] - 0.5
                 low_y = y - ring_config["pad_height"] + 0.76
-                
+
                 # Create secondary line
                 secondary_wire_width = 0.26
                 if is_input:
-                    skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["REN"]} {base_y}) list({x - offsets["REN"]} {low_y})) {secondary_wire_width})')
+                    # Both PDDW16 and PRUW08 input: OEN→high; PRUW08 input: REN→high, PDDW16 input: REN→low
+                    if is_pruw08:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["REN"]} {base_y}) list({x - offsets["REN"]} {high_y})) {secondary_wire_width})')
+                    else:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["REN"]} {base_y}) list({x - offsets["REN"]} {low_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["I"]} {base_y}) list({x - offsets["I"]} {low_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["OEN"]} {base_y}) list({x - offsets["OEN"]} {high_y})) {secondary_wire_width})')
                     pin_pos = f"list({x - offsets['C']} {base_y})"
                 else:
+                    # Both PDDW16 and PRUW08 output: REN→high, OEN→low
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["REN"]} {base_y}) list({x - offsets["REN"]} {high_y})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({x - offsets["OEN"]} {base_y}) list({x - offsets["OEN"]} {low_y})) {secondary_wire_width})')
                     pin_pos = f"list({x - offsets['I']} {base_y})"
-                
+
                 # Create pin label
                 core_label = self._format_core_label(pad["name"])
                 skill_commands.append(f'dbCreateLabel(cv list("M4" "pin") {pin_pos} "{core_label}" "centerRight" "R90" "roman" 2)')
-            
+
             elif orient == "R270":  # Left edge pad
                 base_x = x + ring_config["pad_height"] - 0.125
                 high_x = x + ring_config["pad_height"] + 0.5
                 low_x = x + ring_config["pad_height"] - 0.76
-                
+
                 # Create secondary line
                 secondary_wire_width = 0.26
                 if is_input:
-                    skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["REN"]}) list({low_x} {y - offsets["REN"]})) {secondary_wire_width})')
+                    # Both PDDW16 and PRUW08 input: OEN→high; PRUW08 input: REN→high, PDDW16 input: REN→low
+                    if is_pruw08:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["REN"]}) list({high_x} {y - offsets["REN"]})) {secondary_wire_width})')
+                    else:
+                        skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["REN"]}) list({low_x} {y - offsets["REN"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["I"]}) list({low_x} {y - offsets["I"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["OEN"]}) list({high_x} {y - offsets["OEN"]})) {secondary_wire_width})')
                     pin_pos = f"list({base_x} {y - offsets['C']})"
@@ -437,11 +458,11 @@ class SkillGeneratorT28:
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["REN"]}) list({high_x} {y - offsets["REN"]})) {secondary_wire_width})')
                     skill_commands.append(f'dbCreatePath(cv list("{secondary_layer}" "drawing") list(list({base_x} {y - offsets["OEN"]}) list({low_x} {y - offsets["OEN"]})) {secondary_wire_width})')
                     pin_pos = f"list({base_x} {y - offsets['I']})"
-                
+
                 # Create pin label
                 core_label = self._format_core_label(pad["name"])
                 skill_commands.append(f'dbCreateLabel(cv list("M4" "pin") {pin_pos} "{core_label}" "centerLeft" "R0" "roman" 2)')
-        
+
         return skill_commands
     
     def generate_pin_labels_with_inner(self, outer_pads: List[dict], inner_pads: List[dict], ring_config: dict) -> List[str]:

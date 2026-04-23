@@ -32,7 +32,7 @@ A Claude Code skill for automated IO Ring generation on TSMC 28nm (T28) process 
 
 **What it does:**
 - Parses a natural-language IO Ring specification (signals, placement, dimensions)
-- Classifies signals and maps them to T28 devices (`PDB3AC`, `PDDW16SDGZ`, `PCORNER_G`, etc.)
+- Classifies signals and maps them to T28 devices (analog: `PDB3AC`, `PVDD3AC`/`PVSS3AC`, `PVDD3A`/`PVSS3A`, `PVSS2A`; digital: `PDDW16SDGZ`, `PRUW08SDGZ`, `PVDD1DGZ`/`PVSS1DGZ`/`PVDD2POC`/`PVSS2DGZ`; corners: `PCORNER_G`/`PCORNERA_G`)
 - Builds and validates an intent graph JSON
 - Generates Cadence SKILL code for schematic and layout
 - Uploads SKILL files to the EDA server and executes them in Virtuoso (via virtuoso-bridge-lite)
@@ -376,7 +376,8 @@ io-ring-orchestrator-T28/
 │   ├── enrichment_rules_T28.md       # Intent graph enrichment rules
 │   ├── draft_builder_T28.md          # Draft JSON construction reference
 │   ├── wizard_T28.md                 # Wizard interaction guide
-│   └── image_vision_instruction.md   # Screenshot interpretation guide
+│   ├── image_vision_instruction.md   # Screenshot interpretation guide
+│   └── skill_language_reference.md   # Cadence SKILL programming language reference
 │
 └── T28_Testbench/                    # Built-in wirebonding test cases
     ├── IO_28nm_<name>.txt            # Ready-made prompt files (paste into Claude Code)
@@ -422,8 +423,9 @@ The skill uses a rule-based enrichment engine to classify signals, select device
 | Analog IO | Appears in a user-specified **analog voltage domain**, or name matches analog patterns (VCM, CLKP, VREF…) | `PDB3AC` |
 | Analog power/ground provider | First VDD/VSS signal in a voltage domain range | `PVDD3AC` / `PVSS3AC` |
 | Analog power/ground consumer | All other VDD/VSS signals in the same domain | `PVDD1AC` / `PVSS1AC` |
-| Digital IO | Contiguous block of non-power signals not in any analog domain | `PDDW16SDGZ` |
+| Digital IO | Contiguous block of non-power signals not in any analog domain | `PDDW16SDGZ` (default) or `PRUW08SDGZ` (8-bit, user-specified) |
 | Digital power/ground | Exactly **4 unique signal names** forming the digital domain | `PVDD1DGZ` / `PVSS1DGZ` / `PVDD2POC` / `PVSS2DGZ` |
+| Ring ESD | User declares a whole-ring ESD signal | `PVSS2A` (analog domain) / `PVSS1DGZ` (digital block) |
 | Corner | Inferred from adjacent pad types | `PCORNER_G` (digital) or `PCORNERA_G` (analog/mixed) |
 
 **Key implication**: if you have signals whose names look digital (e.g. `DVDD`, `GIOL`) but belong to an analog domain, you must state the domain explicitly — otherwise the skill may classify them as digital power.
@@ -597,14 +599,24 @@ User Request
 Output files in output/generated/<timestamp>/
 ```
 
-**T28 device types used:**
+**T28 device types:**
 
-| Signal Type | Device |
-|---|---|
-| Analog IO | `PDB3AC` |
-| Digital IO | `PDDW16SDGZ` |
-| General corner | `PCORNER_G` |
-| Analog corner | `PCORNERA_G` |
+| Signal Type | Device | Notes |
+|---|---|---|
+| Analog IO | `PDB3AC` | Bidirectional analog pad |
+| Analog power/ground provider | `PVDD3AC` / `PVSS3AC` | Default provider pair (TACVDD/TACVSS pins) |
+| Analog power/ground provider | `PVDD3A` / `PVSS3A` | User-specified alternative (TAVDD/TAVSS pins) |
+| Analog power/ground consumer | `PVDD1AC` / `PVSS1AC` | Under 3AC provider |
+| Analog power/ground consumer | `PVDD1A` / `PVSS1A` | Under 3A provider |
+| Ring ESD (analog domain) | `PVSS2A` | User-triggered only; 3 pins: VSS + TAVSS + TAVDD |
+| Digital IO | `PDDW16SDGZ` | Default 16-bit digital IO |
+| Digital IO | `PRUW08SDGZ` | 8-bit digital IO; user-specified alternative |
+| Digital power (low VDD) | `PVDD1DGZ` | Standard digital power provider |
+| Digital ground (low VSS) | `PVSS1DGZ` | Standard digital ground provider |
+| Digital power (high VDD) | `PVDD2POC` | High-voltage digital power provider |
+| Digital ground (high VSS) | `PVSS2DGZ` | High-voltage digital ground provider |
+| Digital corner | `PCORNER_G` | Both adjacent pads are digital |
+| Analog/mixed corner | `PCORNERA_G` | At least one adjacent pad is analog |
 
 ---
 
@@ -709,3 +721,5 @@ All outputs are written to `${AMS_OUTPUT_ROOT}/generated/<YYYYMMDD_HHMMSS>/`:
 | Skill contract | `SKILL.md` | Detailed workflow contract and step definitions |
 | virtuoso-bridge-lite | `virtuoso-bridge-lite/README.md` | Full bridge setup: SSH tunnels, daemon, multi-profile, CLI reference |
 | T28 technology reference | `references/T28_Technology.md` | Device specifications and process details |
+| Enrichment rules | `references/enrichment_rules_T28.md` | Signal classification, device selection, and pin connection rules |
+| SKILL language reference | `references/skill_language_reference.md` | Cadence Virtuoso SKILL programming quick reference |

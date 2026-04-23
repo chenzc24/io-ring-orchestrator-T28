@@ -887,19 +887,23 @@ class DeviceTemplateManager:
                 if pin_label is not None:
                     rule['label'] = pin_label
                 else:
-                    # Handle special IO configuration for PDDW16SDGZ and PRUW08SDGZ (identical pin semantics); auxiliary pins dynamically follow main power/ground labels
-                    if device_type in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G', 'PRUW08SDGZ_H_G', 'PRUW08SDGZ_V_G'] and io_type in ['input', 'output']:
+                    # Handle special IO configuration for digital IO devices; auxiliary pins dynamically follow main power/ground labels
+                    is_pruw08 = device_type in ['PRUW08SDGZ_H_G', 'PRUW08SDGZ_V_G']
+                    is_pddw16 = device_type in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G']
+                    if (is_pddw16 or is_pruw08) and io_type in ['input', 'output']:
                         if pin_name == 'REN':
-                                # REN high level connects to VDD, low level connects to VSS
                             if io_type == 'input':
-                                    rule['label'] = vss_label if vss_label is not None else 'GIOL'  # Input REN set to low level
-                            else:  # output
-                                    rule['label'] = vdd_label if vdd_label is not None else 'VIOL'  # Output REN set to high level
+                                if is_pruw08:
+                                    rule['label'] = vdd_label if vdd_label is not None else 'VIOL'  # PRUW08 input: REN to VDD
+                                else:
+                                    rule['label'] = vss_label if vss_label is not None else 'GIOL'  # PDDW16 input: REN to VSS
+                            else:  # output — both PDDW16 and PRUW08: REN to VDD
+                                rule['label'] = vdd_label if vdd_label is not None else 'VIOL'
                         elif pin_name == 'OEN':
                             if io_type == 'input':
-                                    rule['label'] = vdd_label if vdd_label is not None else 'VIOL'  # Input OEN set to high level
-                            else:  # output
-                                    rule['label'] = vss_label if vss_label is not None else 'GIOL'  # Output OEN set to low level
+                                rule['label'] = vdd_label if vdd_label is not None else 'VIOL'  # Input OEN to VDD (both devices)
+                            else:  # output — both PDDW16 and PRUW08: OEN to VSS
+                                rule['label'] = vss_label if vss_label is not None else 'GIOL'
                         elif pin_name == 'C':
                             if io_type == 'input':
                                 rule['label'] = f'{pad_name}_CORE'  # Input IO: C connected to name_CORE

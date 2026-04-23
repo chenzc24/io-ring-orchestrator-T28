@@ -157,9 +157,9 @@ All pin connections for digital signals (both digital IO and digital power/groun
 
 #### Step 2.3: Digital IO Signals Classification and pin connection
 - **Examples**: SDI, RST, SCK, SLP, SDO, D0-D13, DCLK, SYNC
-- **Device selection** (pin rules and direction logic are identical for both):
+- **Device selection**:
   - **Default**: `PDDW16SDGZ_H_G`/`PDDW16SDGZ_V_G`
-  - **User-specified alternative**: `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G` — use ONLY when user explicitly names PRUW08SDGZ; all pin connections, the `direction` field, and the VSS consistency rule are identical to PDDW16SDGZ
+  - **User-specified alternative**: `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G` — use ONLY when user explicitly names PRUW08SDGZ; pin connections are similar to PDDW16SDGZ **except** for input direction: both REN and OEN connect to VDD (high) instead of REN→VSS/OEN→VDD. Output direction is identical to PDDW16 (REN→VDD, OEN→VSS).
 - **Required fields**: `direction` (at instance top level: "input" or "output")
 - **Required pins**: VDD + VSS + VDDPST + VSSPST (ONLY these four, no AIO field)
 
@@ -182,7 +182,7 @@ All pin connections for digital signals (both digital IO and digital power/groun
   - VSSPST → high voltage ground signal name
   - VDDPST → high voltage power signal name
 
-**PRUW08SDGZ**: Identical pin connections to PDDW16SDGZ (VDD + VSS + VDDPST + VSSPST, same label mapping). Used only when user explicitly requests PRUW08SDGZ.
+**PRUW08SDGZ**: Same power pin connections as PDDW16SDGZ (VDD + VSS + VDDPST + VSSPST). **Key difference from PDDW16**: For **input** direction, both REN and OEN connect to VDD (VIOL / vdd_label) instead of PDDW16's REN→VSS/OEN→VDD. **Output** direction is identical to PDDW16 (REN→VDD, OEN→VSS). Used only when user explicitly requests PRUW08SDGZ.
 
 **CRITICAL - All Digital Domain Pads Must Have 4 Pin Connections:**
 - **EVERY digital domain pad** (including digital IO PDDW16SDGZ/PRUW08SDGZ and digital power/ground PVDD1DGZ/PVSS1DGZ/PVDD2POC/PVSS2DGZ) **MUST have EXACTLY 4 pin_connection entries**:
@@ -645,7 +645,7 @@ All pin connections for digital signals (both digital IO and digital power/groun
   }
 }
 ```
-**Note**: `direction` is at instance top level, `pin_connection` contains ONLY VDD/VSS/VDDPST/VSSPST. If user specifies `PRUW08SDGZ`, set `device` to `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G`; `direction` and `pin_connection` are unchanged.
+**Note**: `direction` is at instance top level, `pin_connection` contains ONLY VDD/VSS/VDDPST/VSSPST. If user specifies `PRUW08SDGZ`, set `device` to `PRUW08SDGZ_H_G`/`PRUW08SDGZ_V_G`; `direction` and `pin_connection` are unchanged. Note: PRUW08SDGZ input direction routes both REN and OEN to VDD (handled internally by the generator).
 
 #### Inner Ring Pad (Digital IO)
 ```json
