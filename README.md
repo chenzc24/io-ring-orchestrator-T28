@@ -54,7 +54,7 @@ virtuoso-bridge-lite
 
 | Mode | When | Behavior |
 |---|---|---|
-| `remote` | Windows PC, or no NFS | Scripts uploaded to `/tmp/vb_t28_calibre/` via SSH; results downloaded back |
+| `remote` | Windows PC, or no NFS | Scripts uploaded to `/tmp/vb_t28_calibre_${USER}/` via SSH; results downloaded back |
 | `shared` | Linux on same NFS as EDA server | Both machines see the same paths; Calibre reads/writes directly |
 
 Auto-detected: Windows path (`C:\...`) → `remote`; NFS probe → `shared`. Set `VB_FS_MODE` in `.env` to override.
@@ -80,6 +80,7 @@ Auto-detected: Windows path (`C:\...`) → `remote`; NFS probe → `shared`. Set
 ```bash
 # At your project root:
 git clone https://github.com/chenzc24/virtuoso-bridge-lite.git
+mkdir -p .claude/skills
 git clone https://github.com/chenzc24/io-ring-orchestrator-T28.git .claude/skills/io-ring-orchestrator-T28
 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
@@ -92,6 +93,8 @@ pip install -r .claude/skills/io-ring-orchestrator-T28/requirements.txt
 The bridge `.env` is created by `virtuoso-bridge init`. See
 [`virtuoso-bridge-lite/README.md`](https://github.com/chenzc24/virtuoso-bridge-lite#quick-start)
 for full details (jump hosts, multi-profile, local mode).
+
+> Make sure the `.venv` is activated before running any `virtuoso-bridge` commands.
 
 ```bash
 virtuoso-bridge init <username>@<eda-server>    # creates ~/.virtuoso-bridge/.env
@@ -128,7 +131,8 @@ load("/tmp/virtuoso_bridge_<user>/virtuoso_bridge/virtuoso_setup.il")
 ```
 ```bash
 cd .claude/skills/io-ring-orchestrator-T28
-python scripts/check_virtuoso_connection.py   # expect: ✅ Virtuoso Connection: OK
+../../.venv/bin/python scripts/check_virtuoso_connection.py   # expect: ✅ Virtuoso Connection: OK
+# Windows: ..\..\.venv\Scripts\python.exe scripts/check_virtuoso_connection.py
 ```
 
 **Auto-activate `.venv`:** Set VS Code to use `.venv` as the interpreter, or add
@@ -358,6 +362,7 @@ writing them into the specified file. Every repo URL and command is concrete.
 ```bash
 # Run from the project root directory:
 git clone https://github.com/chenzc24/virtuoso-bridge-lite.git
+mkdir -p .claude/skills
 git clone https://github.com/chenzc24/io-ring-orchestrator-T28.git .claude/skills/io-ring-orchestrator-T28
 ```
 
@@ -389,6 +394,9 @@ One `.venv` serves all skills. To add a second skill later: `pip install -r .cla
 ---
 
 ### Step 2 — Initialize bridge config ❓ → 🤖
+
+> All subsequent steps require the `.venv` to be active. If in a new terminal, run:
+> `source .venv/bin/activate` (Linux/Mac) or `.venv\Scripts\Activate.ps1` (Windows).
 
 **Ask user — required:**
 
@@ -423,12 +431,8 @@ For advanced options (multi-profile, local mode, custom ports), see
 | `CDS_LIB_PATH_28` | "Remote Linux path to your T28 `cds.lib`? (e.g. `/home/youruser/TSMC28/cds.lib`)" |
 
 Write the value into `.claude/skills/io-ring-orchestrator-T28/.env`. The file ships
-pre-filled with defaults — only update the fields marked `# ← CHANGE`:
-
-```bash
-# Edit the skill .env:
-CDS_LIB_PATH_28=/home/<username>/TSMC28/llm_IO/cds.lib
-```
+pre-filled with defaults — use the Edit tool to update only the `CDS_LIB_PATH_28` line
+(the one marked `# ← CHANGE path`), replacing the example path with the user's actual path.
 
 ---
 
@@ -476,8 +480,7 @@ load("/tmp/virtuoso_bridge_<user>/virtuoso_bridge/virtuoso_setup.il")
 
 Verify end-to-end:
 ```bash
-cd .claude/skills/io-ring-orchestrator-T28
-python scripts/check_virtuoso_connection.py
+.venv/bin/python .claude/skills/io-ring-orchestrator-T28/scripts/check_virtuoso_connection.py
 # Success: ✅ Virtuoso Connection: OK
 # Failure: follow printed instructions; run `virtuoso-bridge restart` if tunnel is down
 ```
