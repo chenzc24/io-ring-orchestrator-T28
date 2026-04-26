@@ -362,3 +362,107 @@ def build_confirmed_config_from_io_config(
         json.dump(editor_payload, f, ensure_ascii=False, indent=2)
 
     return str(confirmed_path)
+
+
+def build_draft_editor_session(
+    draft_json_path: str,
+    confirmed_output_path: Optional[str] = None,
+    skip_editor_confirmation: bool = False,
+) -> str:
+    """Open the editor in draft mode with minimal instance data.
+
+    Draft mode accepts instances with just name/position/type (and optionally
+    device). No fillers, corners, or pin connections are required or generated.
+    The confirmed output is a simple JSON carrying only what the user provided.
+
+    Args:
+        draft_json_path: Path to draft JSON with minimal instances.
+        confirmed_output_path: Optional output path for confirmed JSON.
+        skip_editor_confirmation: If True, skip GUI editor and auto-generate output.
+
+    Returns:
+        Path to the confirmed JSON file.
+    """
+    source_path = Path(draft_json_path)
+    if not source_path.exists():
+        raise FileNotFoundError(f"Draft config not found: {draft_json_path}")
+
+    with open(source_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    raw_instances = config.get("instances")
+    if not isinstance(raw_instances, list):
+        raw_instances = config.get("layout_data", [])
+    instances = raw_instances if isinstance(raw_instances, list) else []
+    ring_config = config.get("ring_config", {})
+    if not isinstance(ring_config, dict):
+        ring_config = {}
+    ring_config.setdefault("process_node", "T28")
+    ring_config.setdefault("placement_order", "counterclockwise")
+
+    if confirmed_output_path:
+        confirmed_path = Path(confirmed_output_path)
+        if confirmed_path.suffix.lower() != ".json":
+            confirmed_path = confirmed_path.with_suffix(".json")
+    else:
+        confirmed_path = source_path.with_name(f"{source_path.stem}_confirmed.json")
+
+    output_stem = confirmed_path.stem
+    if output_stem.endswith("_confirmed"):
+        output_stem = output_stem[: -len("_confirmed")]
+    intermediate_path = confirmed_path.with_name(f"{output_stem}_intermediate_editor.json")
+
+    # Build intermediate JSON using the draft-aware exporter
+    try:
+        from .editor_utils import draft_to_editor_json
+        from .layout_visualizer import DEVICE_COLORS as VISUAL_COLORS
+    except ImportError:
+        from .editor_utils import draft_to_editor_json
+        VISUAL_COLORS = {}
+
+    print(f"[draft_editor] Building draft editor JSON from {len(instances)} instances...")
+    exported_path = draft_to_editor_json(
+        draft_instances=instances,
+        ring_config=ring_config,
+        visual_colors=VISUAL_COLORS,
+        output_path=str(intermediate_path),
+    )
+
+    # CLI mode: auto-generate confirmed JSON without launching GUI editor
+    if skip_editor_confirmation:
+        print(f"[draft_editor] CLI mode: Auto-generating draft config (no GUI editor)...")
+        editor_payload = {
+            "ring_config": ring_config,
+            "editor_mode": "draft",
+            "instances": instances,
+        }
+        confirmed_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(confirmed_path, "w", encoding="utf-8") as f:
+            json.dump(editor_payload, f, ensure_ascii=False, indent=2)
+        print(f"[draft_editor] Done. Auto-generated draft config at {confirmed_path}")
+        return str(confirmed_path)
+
+    # Launch editor in draft mode
+    print(f"[draft_editor] Launching browser-based Draft Editor...")
+    try:
+        from ...layout_editor.layout_editor_launcher import launch_layout_editor
+        launch_layout_editor(
+            intermediate_json=str(exported_path),
+            confirmed_json=str(confirmed_path),
+            mode="draft",
+        )
+    except ImportError:
+        import subprocess
+        import sys
+        launcher_script = Path(__file__).parent.parent.parent / "layout_editor" / "layout_editor_launcher.py"
+        print(f"   (Using subprocess launcher: {launcher_script})")
+        proc = subprocess.run(
+            [sys.executable, str(launcher_script), str(exported_path), str(confirmed_path), "--mode", "draft"],
+            capture_output=False,
+            text=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"Draft editor exited with code {proc.returncode}")
+
+    print(f"[draft_editor] Done. Draft confirmed at {confirmed_path}")
+    return str(confirmed_path)

@@ -4,6 +4,8 @@ from typing import Optional, Tuple
 import os
 import json
 import shlex
+import time
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -199,34 +201,135 @@ def _escape_path_for_skill(path: str) -> str:
     return path.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _get_remote_bridge_dir() -> str:
+    """Resolve the remote bridge work directory used by VirtuosoClient."""
+    try:
+        from virtuoso_bridge import VirtuosoClient  # type: ignore
+        client = VirtuosoClient.from_env()
+        tunnel = getattr(client, "_tunnel", None)
+        if tunnel is not None:
+            remote_dir = getattr(tunnel, "remote_work_dir", None)
+            if remote_dir:
+                return remote_dir
+    except Exception:
+        pass
+    return "/tmp/virtuoso_bridge"
+
+
+def _cleanup_remote_il_files() -> None:
+    """Delete stale .il files from the remote bridge work directory.
+
+    Prevents old scripts from being loaded when SSH uploads silently fail
+    (e.g. Windows ControlMaster mux_client_request_session errors).
+    Safe to call even when no SSH tunnel is active.
+    """
+    try:
+        ssh = _get_ssh()
+        remote_dir = _get_remote_bridge_dir()
+        ssh.run_command(f"rm -f {remote_dir}/*.il")
+    except Exception:
+        pass
+
+
+def _unique_remote_name(local_path: str) -> str:
+    """Generate a unique remote filename to avoid collisions across tasks.
+
+    Uses timestamp + short UUID so concurrent tasks never overwrite each other.
+    e.g. io_ring_schematic_20260425_224613_a1b2c3.il
+    """
+    p = Path(local_path)
+    stem = p.stem
+    suffix = p.suffix
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    uid = uuid.uuid4().hex[:6]
+    return f"{stem}_{ts}_{uid}{suffix}"
+
+
+def _scp_upload(local_path: str, remote_path: str) -> bool:
+    """Upload a file via scp with ControlMaster disabled.
+
+    Fallback upload method when the VirtuosoClient daemon upload fails
+    due to Windows ControlMaster mux_client_request_session errors.
+    """
+    import subprocess
+    try:
+        ssh = _get_ssh()
+        host = ssh.remote_host
+        user = os.environ.get("VB_REMOTE_USER", "")
+        if user:
+            target = f"{user}@{host}:{remote_path}"
+        else:
+            target = f"{host}:{remote_path}"
+        result = subprocess.run(
+            ["scp", "-o", "ControlMaster=no", "-o", "BatchMode=yes",
+             "-o", "StrictHostKeyChecking=no", str(local_path), target],
+            capture_output=True, text=True, timeout=120,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def load_skill_file(file_path: str, timeout: int = 60) -> bool:
     """Upload the .il file to the remote server (if SSH tunnel active) and load it
     in Virtuoso CIW. Returns True on success.
 
-    Two-phase approach for reliability:
-    1. Upload the file via VirtuosoClient.load_il() (handles SSH upload + load).
-    2. If load_il reports failure (ok=False), the daemon response may have been lost
-       while Virtuoso was still executing.  Re-upload and retry using direct
-       execute_skill('load(...)') which uses a fresh TCP connection.
+    Three-phase approach for reliability on Windows:
+    1. Upload via VirtuosoClient.load_il() (daemon handles SSH upload + load).
+    2. If daemon upload fails, use scp (ControlMaster=no) as fallback upload,
+       then load via direct execute_skill('load(...)').
+    3. If scp also fails, try rb_exec('load(...)') as last resort using whatever
+       file exists on the remote (previously uploaded or scp'd).
+
+    Safety measures against stale remote files:
+    - Fix B: Cleans up old .il files from the remote directory before uploading.
+    - Fix A: Uses unique remote filenames (timestamp+UUID) so each task gets
+      an isolated path.
     """
+    # Fix B: Clean up stale .il files from previous tasks
+    _cleanup_remote_il_files()
+
+    # Fix A: Use a unique remote filename so each task is isolated
+    src = Path(file_path).resolve()
+    unique_name = _unique_remote_name(file_path)
+    unique_path = src.parent / unique_name
+    unique_path.write_bytes(src.read_bytes())
+
+    remote_dir = _get_remote_bridge_dir()
+    remote_file = f"{remote_dir}/{unique_name}"
+
     try:
+        # Phase 1: Try daemon upload + load
         client = _get_client()
-        result = client.load_il(file_path, timeout=timeout)
+        result = client.load_il(str(unique_path), timeout=timeout)
         if getattr(result, "ok", False):
             return True
     except Exception:
         pass
 
-    # load_il returned False or threw — retry with direct execute_skill.
-    # Re-upload to ensure the remote file is fresh, then load via raw SKILL command.
+    # Phase 2: Daemon upload failed — use scp fallback + direct load
+    if _scp_upload(str(unique_path), remote_file):
+        try:
+            client = _get_client()
+            load_cmd = f'load("{remote_file}")'
+            result2 = client.execute_skill(load_cmd, timeout=timeout)
+            if getattr(result2, "ok", False):
+                return True
+        except Exception:
+            pass
+
+    # Phase 3: Last resort — try rb_exec which uses the VirtuosoClient
+    # TCP socket directly (bypasses SSH upload entirely)
     try:
         client = _get_client()
-        prepared, _ = client._prepare_il_path(Path(file_path))
-        load_cmd = f'load("{prepared}")'
-        result2 = client.execute_skill(load_cmd, timeout=timeout)
-        return getattr(result2, "ok", False)
+        load_result = client.execute_skill(f'load("{remote_file}")', timeout=timeout)
+        resp = getattr(load_result, "response", "") or str(load_result)
+        if resp.strip().lower() == "t":
+            return True
     except Exception:
-        return False
+        pass
+
+    return False
 
 
 def save_current_cellview(timeout: int = 30) -> bool:

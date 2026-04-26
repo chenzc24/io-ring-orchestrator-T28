@@ -42,22 +42,35 @@ def main():
 
     # Parse arguments
     if len(sys.argv) < 3:
-        print("Usage: python build_confirmed_config.py <intent_graph.json> <output_confirmed.json> [--skip-editor]")
+        print("Usage: python build_confirmed_config.py <intent_graph.json> <output_confirmed.json> [--skip-editor] [--mode draft|confirmation]")
         print("\nArguments:")
         print("  intent_graph.json    - Path to input intent graph JSON file")
         print("  output_confirmed.json - Path for output confirmed config JSON")
         print("  --skip-editor        - Optional: Skip GUI confirmation in CLI mode")
-        print("\nExample:")
+        print("  --mode draft         - Optional: Open in Draft Editor mode (no fillers/pins)")
+        print("  --mode confirmation  - Optional: Open in Confirmation Editor mode (default)")
+        print("\nExamples:")
         print("  python build_confirmed_config.py io_ring.json io_ring_confirmed.json")
+        print("  python build_confirmed_config.py draft.json draft_confirmed.json --mode draft")
+        print("  python build_confirmed_config.py io_ring.json io_ring_confirmed.json --skip-editor")
         sys.exit(2)
 
     intent_graph_path = sys.argv[1]
     confirmed_output_path = sys.argv[2]
     extra_args = sys.argv[3:]
     skip_editor_confirmation = False
+    editor_mode = 'confirmation'
     for arg in extra_args:
         if arg == "--skip-editor":
             skip_editor_confirmation = True
+        elif arg == "--mode" or arg.startswith("--mode="):
+            if arg.startswith("--mode="):
+                editor_mode = arg.split("=", 1)[1]
+            else:
+                # next arg is the mode value
+                idx = extra_args.index(arg)
+                if idx + 1 < len(extra_args):
+                    editor_mode = extra_args[idx + 1]
 
     # Check input file exists
     if not Path(intent_graph_path).exists():
@@ -90,13 +103,23 @@ def main():
         print(f"   Input: {intent_graph_path}")
         print(f"   Output: {confirmed_output_path}")
         print(f"   Process: T28")
+        print(f"   Mode: {editor_mode}")
 
-        # Call the core function directly
-        confirmed_path = build_confirmed_config_from_io_config(
-            source_json_path=intent_graph_path,
-            confirmed_output_path=confirmed_output_path,
-            skip_editor_confirmation=skip_editor_confirmation,
-        )
+        # Draft mode: use the draft editor session
+        if editor_mode == 'draft':
+            from assets.core.layout.confirmed_config_builder import build_draft_editor_session
+            confirmed_path = build_draft_editor_session(
+                draft_json_path=intent_graph_path,
+                confirmed_output_path=confirmed_output_path,
+                skip_editor_confirmation=skip_editor_confirmation,
+            )
+        else:
+            # Call the core function directly (confirmation mode)
+            confirmed_path = build_confirmed_config_from_io_config(
+                source_json_path=intent_graph_path,
+                confirmed_output_path=confirmed_output_path,
+                skip_editor_confirmation=skip_editor_confirmation,
+            )
 
         # Verify output was created
         if Path(confirmed_path).exists():

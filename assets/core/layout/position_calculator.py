@@ -46,13 +46,13 @@ class PositionCalculator:
         """Calculate actual coordinates and orientation based on relative position, supporting clockwise/counterclockwise"""
         # Use fixed technology parameters from default configuration (matching merge_source)
         if instance:
-            pad_width = instance.get("pad_width", 80)
-            pad_height = instance.get("pad_height", 120)
-            corner_size = instance.get("corner_size", 130)
+            pad_width = instance.get("pad_width", 20)
+            pad_height = instance.get("pad_height", 110)
+            corner_size = instance.get("corner_size", 110)
         else:
-            pad_width = self.config.get("pad_width", 80)
-            pad_height = self.config.get("pad_height", 120)
-            corner_size = self.config.get("corner_size", 130)
+            pad_width = self.config.get("pad_width", 20)
+            pad_height = self.config.get("pad_height", 110)
+            corner_size = self.config.get("corner_size", 110)
         
         # Get chip dimensions and counts from ring_config (matching merge_source)
         chip_width = ring_config.get("chip_width", 2250)
@@ -160,12 +160,12 @@ class PositionCalculator:
         """Calculate actual coordinates and orientation of filler based on relative position"""
         # Use fixed technology parameters from default configuration (matching merge_source)
         if instance:
-            pad_width = instance.get("pad_width", 80)
-            pad_height = instance.get("pad_height", 120)
+            pad_width = instance.get("pad_width", 20)
+            pad_height = instance.get("pad_height", 110)
         else:
-            pad_width = self.config.get("pad_width", 80)
-            pad_height = self.config.get("pad_height", 120)
-        corner_size = ring_config.get("corner_size", 130)
+            pad_width = self.config.get("pad_width", 20)
+            pad_height = self.config.get("pad_height", 110)
+        corner_size = ring_config.get("corner_size", 110)
         pad_spacing = ring_config.get("pad_spacing", 90)
         placement_order = ring_config.get("placement_order", "counterclockwise")
         

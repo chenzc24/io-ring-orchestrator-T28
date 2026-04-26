@@ -24,23 +24,33 @@ def find_free_port(preferred=8765):
     for port in range(preferred, preferred + 100):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('', port))
+                s.bind(('localhost', port))
                 return port
             except OSError:
                 continue
     raise RuntimeError("No free port found in range")
 
 
-def make_handler(html_path, intermediate_path, confirmed_path, confirmation_event):
-    vendor_dir = Path(html_path).parent / 'vendor'
+def make_handler(html_path, intermediate_path, confirmed_path, confirmation_event, editor_mode='confirmation'):
+    # Select the correct HTML file based on mode
+    html_dir = Path(html_path).parent
+    if editor_mode == 'draft':
+        resolved_html = html_dir / 'layout_editor.html'
+    else:
+        resolved_html = html_dir / 'confirmation_editor.html'
+
+    if not resolved_html.exists():
+        raise FileNotFoundError(f"Editor HTML not found at {resolved_html}")
+
+    vendor_dir = html_dir / 'vendor'
 
     # Pre-load and embed the JSON into the HTML once at startup
-    with open(html_path, 'r', encoding='utf-8') as f:
+    with open(str(resolved_html), 'r', encoding='utf-8') as f:
         html_template = f.read()
     with open(intermediate_path, 'r', encoding='utf-8') as f:
         layout_json_str = f.read()
-    # Inject data as a global variable into the HTML
-    inject_script = f'<script>window.__LAYOUT_DATA__ = {layout_json_str};</script>'
+    # Inject data as global variables into the HTML
+    inject_script = f'<script>window.__LAYOUT_DATA__ = {layout_json_str}; window.__EDITOR_MODE__ = \'{editor_mode}\';</script>'
     served_html = html_template.replace('</head>', inject_script + '\n</head>', 1)
     served_html_bytes = served_html.encode('utf-8')
 
@@ -82,7 +92,8 @@ def make_handler(html_path, intermediate_path, confirmed_path, confirmation_even
                     self.end_headers()
                     self.wfile.write(b'{"status":"ok"}')
 
-                    print(f"[layout_editor] Confirmation saved to {confirmed_path}")
+                    mode_label = "draft" if editor_mode == "draft" else "confirmed"
+                    print(f"[layout_editor] {mode_label.capitalize()} layout saved to {confirmed_path}")
                     confirmation_event.set()
                 except Exception as e:
                     self.send_error(500, str(e))
@@ -112,12 +123,21 @@ def make_handler(html_path, intermediate_path, confirmed_path, confirmation_even
     return EditorHandler
 
 
-def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int = 0, no_open: bool = False) -> str:
+def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int = 0, no_open: bool = False, mode: str = 'confirmation') -> str:
     """Launch the standalone layout editor and block until confirmed.
+
+    Args:
+        intermediate_json: Path to the intermediate editor JSON file.
+        confirmed_json: Path where confirmed JSON will be written.
+        port: HTTP server port (0=auto).
+        no_open: Skip auto-opening browser.
+        mode: Editor mode - 'confirmation' (default, full layout) or 'draft' (minimal, no fillers required).
 
     Returns the path to the confirmed JSON file.
     """
-    html_path = Path(__file__).parent / 'layout_editor.html'
+    # Select HTML file based on mode
+    html_name = 'layout_editor.html' if mode == 'draft' else 'confirmation_editor.html'
+    html_path = Path(__file__).parent / html_name
     if not html_path.exists():
         raise FileNotFoundError(f"layout_editor.html not found at {html_path}")
     if not Path(intermediate_json).exists():
@@ -131,6 +151,7 @@ def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int 
         intermediate_json,
         confirmed_json,
         confirmation_event,
+        editor_mode=mode,
     )
 
     server = ThreadedHTTPServer(('localhost', actual_port), handler_class)
@@ -138,10 +159,15 @@ def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int 
     server_thread.start()
 
     url = f"http://localhost:{actual_port}/"
+    is_draft = mode == 'draft'
+    mode_title = "Draft Editor" if is_draft else "Layout Editor"
+    confirm_btn = "Confirm Draft" if is_draft else "Confirm & Continue"
+
     print(f"")
     print(f"╔══════════════════════════════════════════════════════════════╗")
-    print(f"║           IO Ring Layout Editor — Action Required            ║")
+    print(f"║       IO Ring {mode_title} — Action Required                  ║")
     print(f"╠══════════════════════════════════════════════════════════════╣")
+    print(f"║  Mode: {mode:<52}║")
     print(f"║  Server running on port: {actual_port:<5}                              ║")
     print(f"║                                                              ║")
     print(f"║  Open in your browser (Ctrl+Click the URL below):           ║")
@@ -149,7 +175,9 @@ def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int 
     print(f"║  Then open in your local browser:                           ║")
     print(f"║    {url:<57}║")
     print(f"║                                                              ║")
-    print(f"║  Click \"Confirm & Continue\" when done editing.              ║")
+    print(f"║  Click \"{confirm_btn}\" when done editing.{' ' * (33 - len(confirm_btn))}║")
+    if is_draft:
+        print(f"║  Note: Fillers and pin connections will be added later.      ║")
     print(f"╚══════════════════════════════════════════════════════════════╝")
     print(f"")
 
@@ -177,7 +205,7 @@ def launch_layout_editor(intermediate_json: str, confirmed_json: str, port: int 
 
     confirmation_event.wait()
     server.shutdown()
-    print(f"[layout_editor] Done. Confirmed layout saved.")
+    print(f"[layout_editor] Done. {'Draft' if is_draft else 'Confirmed'} layout saved.")
     return confirmed_json
 
 
@@ -187,6 +215,8 @@ def main():
     parser.add_argument('confirmed_json', help='Path where confirmed JSON will be written')
     parser.add_argument('--port', type=int, default=0, help='HTTP server port (0=auto)')
     parser.add_argument('--no-open', action='store_true', help='Skip auto-opening browser')
+    parser.add_argument('--mode', choices=['draft', 'confirmation'], default='confirmation',
+                        help='Editor mode: draft (minimal, no fillers) or confirmation (full layout)')
     args = parser.parse_args()
 
     try:
@@ -195,6 +225,7 @@ def main():
             confirmed_json=args.confirmed_json,
             port=args.port,
             no_open=args.no_open,
+            mode=args.mode,
         )
         sys.exit(0)
     except Exception as e:

@@ -14,23 +14,23 @@ from typing import Any, List, Optional
 EDITOR_COMPONENT_TEMPLATES = {
     "pad": {
         "view_name": "layout",
-        "pad_width": 80,
-        "pad_height": 120,
+        "pad_width": 20,
+        "pad_height": 110,
     },
     "filler": {
         "view_name": "layout",
         "pad_width": 10,
-        "pad_height": 120,
+        "pad_height": 110,
     },
     "corner": {
         "view_name": "layout",
-        "pad_width": 130,
-        "pad_height": 130,
+        "pad_width": 110,
+        "pad_height": 110,
     },
     "blank": {
         "view_name": "layout",
         "pad_width": 10,
-        "pad_height": 120,
+        "pad_height": 110,
     },
 }
 
@@ -311,9 +311,9 @@ def build_new_instance_from_template(new_item: dict, base_instances: List[dict],
     if created.get("view_name") in (None, ""):
         created["view_name"] = ring_config.get("view_name", "layout")
     if created.get("pad_width") in (None, ""):
-        created["pad_width"] = ring_config.get("pad_width", template.get("pad_width", 80))
+        created["pad_width"] = ring_config.get("pad_width", template.get("pad_width", 20))
     if created.get("pad_height") in (None, ""):
-        created["pad_height"] = ring_config.get("pad_height", template.get("pad_height", 120))
+        created["pad_height"] = ring_config.get("pad_height", template.get("pad_height", 110))
 
     # Backward compatibility: downstream logic may still reference filler_* dimensions.
     process_node = str(ring_config.get("process_node", "")).strip().upper()

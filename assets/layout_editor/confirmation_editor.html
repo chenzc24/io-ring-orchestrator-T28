@@ -88,16 +88,6 @@
       flex-shrink: 0;
     }
     .inspector-toggle:hover { color: #1f2937; }
-    .batch-badge {
-      display: inline-block;
-      background: #dbeafe;
-      color: #2563eb;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 3px;
-      margin-left: 6px;
-    }
     .inspector-header {
       padding: 12px 16px;
       font-size: 13px;
@@ -326,46 +316,6 @@
       white-space: nowrap;
       font-family: monospace;
     }
-    .validation-panel {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: #fff;
-      border-top: 1px solid #e5e7eb;
-      max-height: 160px;
-      overflow-y: auto;
-      z-index: 50;
-      transition: transform 0.2s ease;
-      font-size: 12px;
-    }
-    .validation-panel.collapsed { transform: translateY(calc(100% - 32px)); }
-    .validation-header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 12px; cursor: pointer;
-      background: #f9fafb; border-bottom: 1px solid #e5e7eb;
-      user-select: none;
-    }
-    .validation-header:hover { background: #f3f4f6; }
-    .validation-badge {
-      display: inline-block; padding: 1px 6px; border-radius: 10px;
-      font-size: 10px; font-weight: 600; color: #fff;
-    }
-    .validation-badge.pass { background: #22c55e; }
-    .validation-badge.warn { background: #f59e0b; }
-    .validation-badge.fail { background: #ef4444; }
-    .validation-items { padding: 6px 12px; }
-    .validation-item {
-      display: flex; align-items: center; gap: 6px;
-      padding: 3px 0; font-size: 11px;
-    }
-    .validation-icon { width: 14px; text-align: center; flex-shrink: 0; }
-    .validation-msg { color: #374151; }
-    .validation-msg.warning { color: #b45309; }
-    .validation-msg.error { color: #dc2626; }
-    .draft-banner {
-      background: #eff6ff; border-bottom: 1px solid #bfdbfe;
-      padding: 5px 16px; font-size: 12px; color: #1d4ed8;
-      display: flex; align-items: center; gap: 6px;
-    }
   </style>
 </head>
 <body>
@@ -442,12 +392,12 @@ const T180_DIGITAL_STRICT_DEVICES = new Set(['PDDW0412SCDG']);
 const SUPPORTED_DEVICES_BY_NODE = { T28: T28_SUPPORTED_DEVICES, T180: T180_SUPPORTED_DEVICES };
 const PIN_LABEL_FALLBACKS = { analogPwr:'AVDD', analogGnd:'AVSS', digitalVdd:'VIOL', digitalVss:'GIOL', digitalVddPst:'VIOH', digitalVssPst:'GIOH' };
 const resolveDomain = (domain) => String(domain||'').toLowerCase()==='digital'?'digital':'analog';
-const resolveProcessNode = (processNode) => { const n=String(processNode||'T28').toUpperCase(); if(n==='T180')return'T180'; if(n==='T28')return'T28'; return null; };
+const resolveProcessNode = (processNode) => { const n=String(processNode||'T180').toUpperCase(); if(n==='T180')return'T180'; if(n==='T28')return'T28'; return null; };
 const normalizeDeviceName = (device) => String(device||'').trim().toUpperCase();
 const getSupportedDevices = (resolvedNode) => resolvedNode==='T180'?SUPPORTED_DEVICES_BY_NODE.T180:SUPPORTED_DEVICES_BY_NODE.T28;
 const matchesT28Family = (device, familyPrefix) => device.startsWith(`${familyPrefix}_`);
 const T28_DIGITAL_FAMILIES = new Set(['PDDW16SDGZ','PRUW08SDGZ','PVDD1DGZ','PVSS1DGZ','PVDD2POC','PVSS2DGZ']);
-const getSupportedDevicesForProcess = (processNode) => { const resolved=resolveProcessNode(processNode)||'T28'; return Array.from(SUPPORTED_DEVICES_BY_NODE[resolved]); };
+const getSupportedDevicesForProcess = (processNode) => { const resolved=resolveProcessNode(processNode)||'T180'; return Array.from(SUPPORTED_DEVICES_BY_NODE[resolved]); };
 const isSupportedDeviceForProcess = (processNode,device) => { const resolved=resolveProcessNode(processNode); if(!resolved)return false; const nd=normalizeDeviceName(device); if(!nd)return false; return SUPPORTED_DEVICES_BY_NODE[resolved].has(nd); };
 const classifyDeviceForProcess = (processNode,device) => { const resolved=resolveProcessNode(processNode); const nd=normalizeDeviceName(device); if(!resolved||!nd)return'unsupported'; if(!SUPPORTED_DEVICES_BY_NODE[resolved].has(nd))return'unsupported'; if(resolved==='T180'){if(T180_DIGITAL_STRICT_DEVICES.has(nd))return'digital'; if(T180_ANALOG_PREFERRED_DEVICES.has(nd))return'analog'; return'unsupported';} const isT28Digital=Array.from(T28_DIGITAL_FAMILIES).some(f=>matchesT28Family(nd,f)); return isT28Digital?'digital':'analog'; };
 const resolveT28Labels = (profile) => ({ analogPwrRef:profile.analog.regPwr||PIN_LABEL_FALLBACKS.analogPwr, analogGndRef:profile.analog.regGnd||PIN_LABEL_FALLBACKS.analogGnd, digitalVdd:profile.digital.regPwr||PIN_LABEL_FALLBACKS.digitalVdd, digitalVss:profile.digital.regGnd||PIN_LABEL_FALLBACKS.digitalVss, digitalVddPst:profile.digital.vdPwr||PIN_LABEL_FALLBACKS.digitalVddPst, digitalVssPst:profile.digital.vdGnd||PIN_LABEL_FALLBACKS.digitalVssPst });
@@ -467,26 +417,11 @@ const T28_RULES = [
 ];
 const buildT28DigitalPinConfig = (labels) => ({VDD:{label:labels.digitalVdd},VSS:{label:labels.digitalVss},VDDPST:{label:labels.digitalVddPst},VSSPST:{label:labels.digitalVssPst}});
 const buildT28PinConfig = (device,instanceName,profile) => { const labels=resolveT28Labels(profile); for(const rule of T28_RULES){if(matchesDeviceFamily(device,rule.family))return rule.build(instanceName,labels);} const isDigitalFamily=Array.from(T28_DIGITAL_FAMILIES).some(f=>matchesDeviceFamily(device,f)); if(isDigitalFamily)return buildT28DigitalPinConfig(labels); return null; };
-const resolveProfile = (processNode,pinConfigProfiles) => { const resolvedNode=String(processNode||'T28').toUpperCase(); const resolvedProcessNode=resolveProcessNode(resolvedNode); const externalProfile=pinConfigProfiles&&pinConfigProfiles[resolvedNode]?pinConfigProfiles[resolvedNode]:null; if(externalProfile?.analog&&externalProfile?.digital)return externalProfile; if(!resolvedProcessNode)return null; return PROCESS_DEFAULTS[resolvedProcessNode]||null; };
+const resolveProfile = (processNode,pinConfigProfiles) => { const resolvedNode=String(processNode||'T180').toUpperCase(); const resolvedProcessNode=resolveProcessNode(resolvedNode); const externalProfile=pinConfigProfiles&&pinConfigProfiles[resolvedNode]?pinConfigProfiles[resolvedNode]:null; if(externalProfile?.analog&&externalProfile?.digital)return externalProfile; if(!resolvedProcessNode)return null; return PROCESS_DEFAULTS[resolvedProcessNode]||null; };
 const SELF_NAME_PIN_BY_DEVICE = {PVDD1ANA:'AVDD',PVSS1ANA:'AVSS',PVDD1CDG:'VDD',PVSS1CDG:'VSS',PVDD2CDG:'VDDPST',PVSS2CDG:'VSSPST'};
 const withSelfNamePins = (device,instanceName,pinConfig) => { if(!instanceName)return pinConfig; const targetPin=SELF_NAME_PIN_BY_DEVICE[device]; if(!targetPin)return pinConfig; return{...pinConfig,[targetPin]:{label:instanceName}}; };
-const buildPinConfigTemplate = (options) => { const resolvedNode=String(options.processNode||'T28').toUpperCase(); const device=String(options.device||'').toUpperCase(); const instanceName=String(options.instanceName||'').trim(); const supportedDevices=getSupportedDevices(resolvedNode); if(!supportedDevices.has(device))return null; const profile=resolveProfile(resolvedNode,options.pinConfigProfiles); if(!profile)return null; if(resolvedNode==='T28')return buildT28PinConfig(device,instanceName,profile); const domain=resolveDomain(options.domain); const labels=domain==='digital'?profile.digital:profile.analog; const base={VDD:{label:labels.regPwr},VSS:{label:labels.regGnd},VDDPST:{label:labels.vdPwr},VSSPST:{label:labels.vdGnd}}; return withSelfNamePins(device,instanceName,base); };
+const buildPinConfigTemplate = (options) => { const resolvedNode=String(options.processNode||'T180').toUpperCase(); const device=String(options.device||'').toUpperCase(); const instanceName=String(options.instanceName||'').trim(); const supportedDevices=getSupportedDevices(resolvedNode); if(!supportedDevices.has(device))return null; const profile=resolveProfile(resolvedNode,options.pinConfigProfiles); if(!profile)return null; if(resolvedNode==='T28')return buildT28PinConfig(device,instanceName,profile); const domain=resolveDomain(options.domain); const labels=domain==='digital'?profile.digital:profile.analog; const base={VDD:{label:labels.regPwr},VSS:{label:labels.regGnd},VDDPST:{label:labels.vdPwr},VSSPST:{label:labels.vdGnd}}; return withSelfNamePins(device,instanceName,base); };
 const supportedProcessNodes = () => Object.keys(PROCESS_DEFAULTS);
-
-// === Voltage Domain Colors ===
-const VOLTAGE_DOMAIN_PALETTE = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
-const getVoltageDomainColor = (domain) => {
-  if(!domain) return null;
-  let hash=0; for(let i=0;i<domain.length;i++) hash=((hash<<5)-hash)+domain.charCodeAt(i);
-  return VOLTAGE_DOMAIN_PALETTE[Math.abs(hash)%VOLTAGE_DOMAIN_PALETTE.length];
-};
-// Collect existing voltage domain names from all instances
-const collectVoltageDomains = (graph) => {
-  if (!graph || !graph.instances) return [];
-  const set = new Set();
-  graph.instances.forEach(inst => { if (inst.voltage_domain) set.add(inst.voltage_domain); });
-  return [...set];
-};
 
 // === ioAdapter.js ===
 const generateId = () => Math.random().toString(36).substr(2,9);
@@ -504,22 +439,14 @@ const importAdapter = (json) => {
     let finalSide; let finalOrder=0;
     if(side&&order!==undefined){finalSide=side; const numericOrder=Number(order); finalOrder=Number.isFinite(numericOrder)?Math.max(1,numericOrder):1;}
     else if(typeof position==='string'){
-      const innerMatch=position.match(/^(top|bottom|left|right)_(\d+)_(\d+)$/);
       const ioMatch=position.match(/^(top|bottom|left|right)_(\d+)$/);
+      const innerMatch=position.match(/^(top|bottom|left|right)_(\d+)_(\d+)$/);
       const cornerMatch=position.match(/^(top|bottom)_(left|right)$/);
       if(innerMatch){finalSide=innerMatch[1]; finalOrder=parseInt(innerMatch[2],10)+1; runtimeMeta['_original_position']=position;}
       else if(ioMatch){finalSide=ioMatch[1]; finalOrder=parseInt(ioMatch[2],10)+1;}
       else if(cornerMatch){finalSide='corner'; runtimeMeta['_original_position']=position;}
       else{const instanceLabel=String(name||device||rawId||'unknown'); throw new Error(`Invalid position format for instance '${instanceLabel}': '${position}'.`);}
-    } else {
-      // Draft mode: tolerate missing position if side is provided directly
-      if ((window.__EDITOR_MODE__ === 'draft') && side && ['top','right','bottom','left','corner'].includes(side)) {
-        finalSide = side;
-        finalOrder = Number.isFinite(Number(order)) ? Math.max(1, Number(order)) : 1;
-      } else {
-        const instanceLabel=String(name||device||rawId||'unknown'); throw new Error(`Missing position for instance '${instanceLabel}'.`);
-      }
-    }
+    } else {const instanceLabel=String(name||device||rawId||'unknown'); throw new Error(`Missing position for instance '${instanceLabel}'.`);}
     const id=rawId||generateId();
     return {id,name:name||`Inst_${id}`,device:device||'UNKNOWN',type:type||'unknown',side:finalSide,order:finalOrder,...migratedBusinessFields,...rest,meta:{...runtimeMeta,...(Array.isArray(position)?{position}:{})}};
   });
@@ -535,8 +462,8 @@ const exportAdapter = (graph) => {
     const normalizedOrder = Number.isFinite(Number(order))?Math.max(1,Number(order)):1;
     const instType = (type||'pad').toLowerCase();
     let position = metaPos||[0,0];
-    // Preserve inner_pad side_i_j format (e.g. left_1_2)
     if(instType === 'inner_pad' && typeof _original_position === 'string' && _original_position.split('_').length === 3){
+      // Preserve inner_pad side_i_j format (e.g. left_3_4)
       position = _original_position;
     } else if(side==='top'||side==='right'||side==='bottom'||side==='left'){position=`${side}_${normalizedOrder-1}`;}
     else{const cornerPos=meta?.location||_original_position||meta?._relative_position; if(cornerPos==='top_left'||cornerPos==='top_right'||cornerPos==='bottom_left'||cornerPos==='bottom_right')position=cornerPos;}
@@ -550,7 +477,7 @@ const exportAdapter = (graph) => {
 // ============================================================
 
 const DEFAULT_PAD_DEVICE_BY_PROCESS = {T180:'PVDD1CDG',T28:'PDDW16SDGZ_V_G'};
-const resolveProcessNodeKey = (processNode) => String(processNode||'T28').toUpperCase().includes('28')?'T28':'T180';
+const resolveProcessNodeKey = (processNode) => String(processNode||'T180').toUpperCase().includes('28')?'T28':'T180';
 const resolveCornerDevice = (processNode,type='corner') => { const processKey=resolveProcessNodeKey(processNode); if(processKey==='T28'){if(type==='corner_digital')return'PCORNER_G'; return'PCORNERA_G';} return'PCORNER'; };
 const resolvePeripheralDevice = (processNode,type='pad') => {
   const processKey=resolveProcessNodeKey(processNode);
@@ -571,19 +498,19 @@ const pinConfigsEqual = (left,right) => { const l=normalizePinConfig(left); cons
 const buildTemplateForInstance = (inst,ringConfig) => buildPinConfigTemplate({processNode:ringConfig?.process_node,device:inst.device,instanceName:inst.name,domain:inst.domain,pinConfigProfiles:ringConfig?.pin_connection_profiles});
 const hasCustomPinConfig = (inst,ringConfig) => { const current=inst.pin_connection; if(!isPinConfigRecord(current))return false; const template=buildTemplateForInstance(inst,ringConfig); if(!template)return true; return !pinConfigsEqual(current,template); };
 const shouldRebuildPinConfig = (previous,partial,ringConfig) => { if(hasOwn(partial,'pin_connection'))return false; const triggerRebuild=hasOwn(partial,'device')||hasOwn(partial,'domain')||hasOwn(partial,'name'); if(!triggerRebuild)return false; if(hasCustomPinConfig(previous,ringConfig))return false; const next={...previous,...partial}; return isSupportedDeviceForProcess(ringConfig?.process_node,next.device); };
-const resolveDefaultPadDevice = (processNode) => { const normalized=String(processNode||'T28').toUpperCase(); const preferred=DEFAULT_PAD_DEVICE_BY_PROCESS[normalized]; const supported=getSupportedDevicesForProcess(normalized); if(preferred&&supported.includes(preferred))return preferred; if(supported.length>0)return supported[0]; return'GenericDevice'; };
+const resolveDefaultPadDevice = (processNode) => { const normalized=String(processNode||'T180').toUpperCase(); const preferred=DEFAULT_PAD_DEVICE_BY_PROCESS[normalized]; const supported=getSupportedDevicesForProcess(normalized); if(preferred&&supported.includes(preferred))return preferred; if(supported.length>0)return supported[0]; return'GenericDevice'; };
 const toPositiveNumber = (value,fallback) => { const numeric=Number(value); if(Number.isFinite(numeric)&&numeric>0)return numeric; return fallback; };
 const isPadLikeInstance = (inst) => String(inst.type||'').toLowerCase()==='pad';
 const inferPerimeterWidth = (inst,ringConfig) => {
   const compType=String(inst.type||'').toLowerCase(); const device=String(inst.device||'').toUpperCase();
-  if(compType==='corner'||device.includes('CORNER'))return toPositiveNumber(inst.pad_width??inst.pad_height??ringConfig.corner_size,110);
+  if(compType==='corner'||device.includes('CORNER'))return toPositiveNumber(inst.pad_width??inst.pad_height??ringConfig.corner_size,130);
   if(compType==='filler'||compType==='blank'||device.includes('FILLER')||device.includes('RCUT')||device==='BLANK'){
     const explicit=toPositiveNumber(inst.pad_width,NaN); if(Number.isFinite(explicit))return explicit;
     const m=device.match(/PFILLER(\d+)/); if(m)return toPositiveNumber(m[1],10); if(device==='BLANK')return 10;
     if(device.includes('RCUT'))return toPositiveNumber(ringConfig.pad_width,20);
     return 10;
   }
-  return toPositiveNumber(inst.pad_width??ringConfig.pad_width,20);
+  return toPositiveNumber(inst.pad_width??ringConfig.pad_width,80);
 };
 const resolveCornerLocation = (inst) => { const location=inst.meta?.location||inst.meta?._relative_position||inst.meta?._original_position; if(location==='top_left'||location==='top_right'||location==='bottom_left'||location==='bottom_right')return location; return null; };
 const withCornerLocation = (inst,location) => ({...inst,side:'corner',meta:{...(inst.meta||{}),location,_relative_position:location,_original_position:location}});
@@ -592,14 +519,8 @@ const withAutoChipSize = (graph) => {
   if(!graph||!Array.isArray(graph.instances))return graph;
   const sideSum={top:0,right:0,bottom:0,left:0};
   const corners={top_left:null,top_right:null,bottom_left:null,bottom_right:null};
-  graph.instances.forEach(inst=>{
-    const side=String(inst.side||'');
-    if(side==='corner'){const loc=resolveCornerLocation(inst); if(loc)corners[loc]=inst; return;}
-    // Inner pads DO take perimeter space when rendered inline in the ring
-    // (no longer skipped)
-    if(['top','right','bottom','left'].includes(side))sideSum[side]+=inferPerimeterWidth(inst,graph.ring_config);
-  });
-  const defaultCorner=toPositiveNumber(graph.ring_config.corner_size,110);
+  graph.instances.forEach(inst=>{const side=String(inst.side||''); if(side==='corner'){const loc=resolveCornerLocation(inst); if(loc)corners[loc]=inst; return;} if(['top','right','bottom','left'].includes(side))sideSum[side]+=inferPerimeterWidth(inst,graph.ring_config);});
+  const defaultCorner=toPositiveNumber(graph.ring_config.corner_size,130);
   const cornerLen=(corner)=>corner?inferPerimeterWidth(corner,graph.ring_config):defaultCorner;
   const topTotal=sideSum.top+cornerLen(corners.top_left)+cornerLen(corners.top_right);
   const bottomTotal=sideSum.bottom+cornerLen(corners.bottom_left)+cornerLen(corners.bottom_right);
@@ -610,10 +531,7 @@ const withAutoChipSize = (graph) => {
 const withAutoSideCounts = (graph) => {
   if(!graph||!Array.isArray(graph.instances))return graph;
   const counts={top:0,right:0,bottom:0,left:0};
-  // Count only outer pads — exclude inner_pads from width/height
-  graph.instances.forEach(inst=>{
-    if(['top','right','bottom','left'].includes(inst.side)&&isPadLikeInstance(inst)&&String(inst.type||'').toLowerCase()!=='inner_pad')counts[inst.side]+=1;
-  });
+  graph.instances.forEach(inst=>{if(['top','right','bottom','left'].includes(inst.side)&&isPadLikeInstance(inst))counts[inst.side]+=1;});
   const width=Math.max(counts.top,counts.bottom,1); const height=Math.max(counts.left,counts.right,1);
   const ringConfig=graph.ring_config||{};
   const hasPatternA=ringConfig.top_count!==undefined||ringConfig.right_count!==undefined||ringConfig.bottom_count!==undefined||ringConfig.left_count!==undefined;
@@ -638,21 +556,20 @@ const normalizeGraphInstances = (graph) => {
   return{...graph,instances:normalizedInstances};
 };
 const withAutoPinConfig = (inst,ringConfig,force=false) => { const existingPinConfig=inst.pin_connection; if(!force&&existingPinConfig&&typeof existingPinConfig==='object')return inst; const generated=buildTemplateForInstance(inst,ringConfig); if(!generated)return inst; return{...inst,pin_connection:generated}; };
-const DEFAULT_GRAPH = {ring_config:{width:26,height:12,placement_order:'counterclockwise',process_node:'T28'},instances:[]};
+const DEFAULT_GRAPH = {ring_config:{width:26,height:12,placement_order:'counterclockwise',process_node:'T180'},instances:[]};
 
 const useIORingStore = create((set,get) => {
   const pushHistory = () => set(state=>({history:{past:[...state.history.past,state.graph],future:[]}}));
   return {
-    graph:DEFAULT_GRAPH, selectedId:null, selectedIds:[], clipboard:null, editorSourcePath:null, editorProcessNode:null, editorMode:window.__EDITOR_MODE__||'confirmation', history:{past:[],future:[]},
-    setGraph: graph => { const isDraft=get().editorMode==='draft'; const processedGraph=withDerivedRingConfig(normalizeGraphInstances({...graph,instances:graph.instances.map(inst=>{const base={...inst,meta:inst.meta||{},id:inst.id||generateId()}; return isDraft?base:withAutoPinConfig(base,graph.ring_config);})})); set({graph:processedGraph,history:{past:[],future:[]},selectedId:null,selectedIds:[]}); },
+    graph:DEFAULT_GRAPH, selectedId:null, selectedIds:[], clipboard:null, editorSourcePath:null, editorProcessNode:null, history:{past:[],future:[]},
+    setGraph: graph => { const processedGraph=withDerivedRingConfig(normalizeGraphInstances({...graph,instances:graph.instances.map(inst=>({...withAutoPinConfig({...inst,meta:inst.meta||{}},graph.ring_config),id:inst.id||generateId()}))})); set({graph:processedGraph,history:{past:[],future:[]},selectedId:null,selectedIds:[]}); },
     setEditorSourcePath: path => set({editorSourcePath:path}),
     setEditorProcessNode: processNode => set({editorProcessNode:processNode}),
     selectInstance: (id,additive=false) => set(state=>{ if(!id)return{selectedId:null,selectedIds:[]}; if(!additive)return{selectedId:id,selectedIds:[id]}; const exists=state.selectedIds.includes(id); const nextSelectedIds=exists?state.selectedIds.filter(item=>item!==id):[...state.selectedIds,id]; return{selectedId:nextSelectedIds.length?nextSelectedIds[nextSelectedIds.length-1]:null,selectedIds:nextSelectedIds}; }),
     selectInstances: (ids,additive=false) => set(state=>{ const deduped=Array.from(new Set(ids)); const nextSelectedIds=additive?Array.from(new Set([...state.selectedIds,...deduped])):deduped; return{selectedId:nextSelectedIds.length?nextSelectedIds[nextSelectedIds.length-1]:null,selectedIds:nextSelectedIds}; }),
     clearSelection: () => set({selectedId:null,selectedIds:[]}),
-    updateInstance: (id,partial) => { pushHistory(); const{graph}=get(); const isDraft=get().editorMode==='draft'; const newInstances=graph.instances.map(inst=>{if(inst.id!==id)return inst; const nextPartial={...partial}; if(hasOwn(partial,'device')&&!hasOwn(partial,'pad_width')){const nc={...inst,...partial}; if(isFillerLike(nc)){const aw=resolvePadWidthFromDevice(nc.device); if(aw!==null)nextPartial.pad_width=aw;}} const merged={...inst,...nextPartial}; if(isDraft)return merged; const forceRebuild=shouldRebuildPinConfig(inst,nextPartial,graph.ring_config); return withAutoPinConfig(merged,graph.ring_config,forceRebuild);}); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:newInstances}))}); },
-    updateInstances: (ids,partial) => { const targetIds=Array.from(new Set(ids)); if(targetIds.length===0)return; pushHistory(); const{graph}=get(); const isDraft=get().editorMode==='draft'; const targetSet=new Set(targetIds); const newInstances=graph.instances.map(inst=>{if(!targetSet.has(inst.id))return inst; const nextPartial={...partial}; if(hasOwn(partial,'device')&&!hasOwn(partial,'pad_width')){const nc={...inst,...partial}; if(isFillerLike(nc)){const aw=resolvePadWidthFromDevice(nc.device); if(aw!==null)nextPartial.pad_width=aw;}} const merged={...inst,...nextPartial}; if(isDraft)return merged; const forceRebuild=shouldRebuildPinConfig(inst,nextPartial,graph.ring_config); return withAutoPinConfig(merged,graph.ring_config,forceRebuild);}); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:newInstances}))}); },
-    updateInstancesPinConnection: (ids,pinConnection) => { const targetIds=Array.from(new Set(ids)); if(targetIds.length===0)return; pushHistory(); const{graph}=get(); const isDraft=get().editorMode==='draft'; const targetSet=new Set(targetIds); const newInstances=graph.instances.map(inst=>{if(!targetSet.has(inst.id))return inst; const nextMeta={...(inst.meta||{})}; delete nextMeta.pin_connection; const merged={...inst,pin_connection:pinConnection,meta:nextMeta}; if(isDraft)return merged; return withAutoPinConfig(merged,graph.ring_config);}); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:newInstances}))}); },
+    updateInstance: (id,partial) => { pushHistory(); const{graph}=get(); const newInstances=graph.instances.map(inst=>{if(inst.id!==id)return inst; const nextPartial={...partial}; if(hasOwn(partial,'device')&&!hasOwn(partial,'pad_width')){const nc={...inst,...partial}; if(isFillerLike(nc)){const aw=resolvePadWidthFromDevice(nc.device); if(aw!==null)nextPartial.pad_width=aw;}} const forceRebuild=shouldRebuildPinConfig(inst,nextPartial,graph.ring_config); return withAutoPinConfig({...inst,...nextPartial},graph.ring_config,forceRebuild);}); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:newInstances}))}); },
+    updateInstancesPinConnection: (ids,pinConnection) => { const targetIds=Array.from(new Set(ids)); if(targetIds.length===0)return; pushHistory(); const{graph}=get(); const targetSet=new Set(targetIds); const newInstances=graph.instances.map(inst=>{if(!targetSet.has(inst.id))return inst; const nextMeta={...(inst.meta||{})}; delete nextMeta.pin_connection; return withAutoPinConfig({...inst,pin_connection:pinConnection,meta:nextMeta},graph.ring_config);}); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:newInstances}))}); },
     moveInstance: (id,newSide,newOrder) => {
       pushHistory(); const{graph}=get(); const placementOrder=getPlacementOrder(graph); const target=graph.instances.find(i=>i.id===id); if(!target)return; const oldSide=target.side; if(!['top','right','bottom','left'].includes(oldSide))return;
       if(oldSide===newSide){const vis=getSideVisualInstances(graph,oldSide); const filtered=vis.filter(i=>i.id!==id); const insertIndex=Math.max(0,Math.min(newOrder,filtered.length)); filtered.splice(insertIndex,0,{...target,side:newSide}); const updatedSide=applySideOrderFromVisual(oldSide,filtered,placementOrder); const updatedMap=new Map(updatedSide.map(i=>[i.id,i])); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:graph.instances.map(inst=>updatedMap.get(inst.id)||inst)}))});}
@@ -686,17 +603,14 @@ const useIORingStore = create((set,get) => {
       let namePrefix='INST'; let device=resolveDefaultPadDevice(graph.ring_config?.process_node); let normalizedType=requestedType; const businessDefaults={};
       const peripheralConfig=resolvePeripheralDevice(graph.ring_config?.process_node,requestedType);
       if(peripheralConfig){namePrefix=peripheralConfig.namePrefix; device=peripheralConfig.device; normalizedType=peripheralConfig.normalizedType;}
-      else{const processNode=String(graph.ring_config?.process_node||'T28').toUpperCase(); const deviceClass=classifyDeviceForProcess(graph.ring_config?.process_node,device); if(processNode==='T180')businessDefaults.domain=deviceClass==='analog'?'analog':'digital'; if(deviceClass==='digital')businessDefaults.direction='input';}
+      else{const processNode=String(graph.ring_config?.process_node||'T180').toUpperCase(); const deviceClass=classifyDeviceForProcess(graph.ring_config?.process_node,device); if(processNode==='T180')businessDefaults.domain=deviceClass==='analog'?'analog':'digital'; if(deviceClass==='digital')businessDefaults.direction='input';}
       const sideInstances=getSideVisualInstances(graph,targetSide); let insertIndex=sideInstances.length;
       if(selectedInstance&&selectedInstance.side===targetSide&&selectedInstance.side!=='corner'){const fi=sideInstances.findIndex(i=>i.id===selectedId); if(fi!==-1)insertIndex=fi+1;}
       const newInst={id:generateId(),name:`${namePrefix}_${sideInstances.length+1}`,device,type:normalizedType,side:targetSide,order:1,meta:{},...businessDefaults};
       if(isFillerLike(newInst)){const aw=resolvePadWidthFromDevice(newInst.device); if(aw!==null)newInst.pad_width=aw;}
-      const isDraft=get().editorMode==='draft'; const newInstFinal=isDraft?newInst:withAutoPinConfig(newInst,graph.ring_config,true); const newSideList=[...sideInstances]; newSideList.splice(insertIndex,0,newInstFinal);
+      const newInstWithPinConfig=withAutoPinConfig(newInst,graph.ring_config,true); const newSideList=[...sideInstances]; newSideList.splice(insertIndex,0,newInstWithPinConfig);
       const placementOrder=getPlacementOrder(graph); const reindexedSideList=applySideOrderFromVisual(targetSide,newSideList,placementOrder); const otherInstances=graph.instances.filter(i=>i.side!==targetSide);
-      set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:[...otherInstances,...reindexedSideList]})),selectedId:newInstFinal.id,selectedIds:[newInstFinal.id]});
-    },
-    addCornerAtLocation: (location) => {
-      const{graph}=get(); const existing=graph.instances.find(inst=>inst.side==='corner'&&resolveCornerLocation(inst)===location); if(existing)return; pushHistory(); const cornerDevice=resolveCornerDevice(graph.ring_config?.process_node); const cornerInst=withCornerLocation({id:generateId(),name:`CORNER_${location}`,device:cornerDevice,type:'corner',side:'corner',order:1,meta:{}},location); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:[...graph.instances,cornerInst]})),selectedId:cornerInst.id,selectedIds:[cornerInst.id]});
+      set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:[...otherInstances,...reindexedSideList]})),selectedId:newInstWithPinConfig.id,selectedIds:[newInstWithPinConfig.id]});
     },
     deleteInstance: id => { pushHistory(); const{graph}=get(); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:graph.instances.filter(i=>i.id!==id)})),selectedId:null,selectedIds:[]}); },
     deleteInstances: ids => { if(!ids.length)return; pushHistory(); const{graph}=get(); const deleteSet=new Set(ids); set({graph:withDerivedRingConfig(normalizeGraphInstances({...graph,instances:graph.instances.filter(inst=>!deleteSet.has(inst.id))})),selectedId:null,selectedIds:[]}); },
@@ -921,8 +835,8 @@ function PropertyEditorComponent({ instance, ringConfig, onChange }) {
       h('input', { className: inputCls, style: { flex: 1 }, value: instance.type || '', disabled: true })));
   }
 
-  // pin_connection — only for pad business instances (hidden in draft mode)
-  if (isPadBusiness && useIORingStore.getState().editorMode !== 'draft') {
+  // pin_connection — only for pad business instances
+  if (isPadBusiness) {
     const pinLabel = h('div', { key: 'pin_header', style: { ...labelStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
       h('span', null, 'PIN CONNECTION'),
       h('div', { style: { display: 'flex', gap: 5 } },
@@ -967,33 +881,6 @@ function PropertyEditorComponent({ instance, ringConfig, onChange }) {
           h('option', { value: '' }, 'unset'),
           h('option', { value: 'input' }, 'input'),
           h('option', { value: 'output' }, 'output'))));
-  }
-
-  // voltage_domain — free-text with suggestions for T28 draft mode
-  const editorModeState = useIORingStore.getState();
-  if (isPadBusiness && isT28 && editorModeState.editorMode === 'draft') {
-    const vdColor = getVoltageDomainColor(instance.voltage_domain);
-    const existingDomains = collectVoltageDomains(useIORingStore.getState().graph);
-    const filteredSuggestions = existingDomains.filter(d => d !== instance.voltage_domain);
-    fields.push(h('div', { key: 'voltage_domain', style: labelStyle },
-      'VOLTAGE DOMAIN',
-      vdColor ? h('span', { style: { display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: vdColor, marginLeft: 6, verticalAlign: 'middle' } }) : null
-    ),
-      h('div', { style: { ...rowStyle, position: 'relative', flex: 1 } },
-        h('input', { className: inputCls, style: { width: '100%' }, value: instance.voltage_domain || '', placeholder: 'e.g. domain_1',
-          onChange: e => onChange({ voltage_domain: e.target.value || undefined })
-        }),
-        filteredSuggestions.length > 0 ? h('div', {
-          style: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, zIndex: 50, maxHeight: 80, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-        }, ...filteredSuggestions.map(d => h('div', {
-          key: d,
-          style: { padding: '4px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 },
-          onMouseDown: e => { e.preventDefault(); onChange({ voltage_domain: d }); }
-        },
-          h('span', { style: { display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: getVoltageDomainColor(d), flexShrink: 0 } }),
-          h('span', null, d)
-        ))) : null
-      ));
   }
 
   return h('div', null, ...fields);
@@ -1065,10 +952,10 @@ function RingConfigEditorComponent({ ringConfig, onChange }) {
     // Process Node
     h('div', { style: { marginBottom: 10 } },
       h('div', { style: sectionLabel }, 'PROCESS NODE'),
-      h('select', { className: 'prop-select', style: { width: '100%' }, value: ringConfig.process_node || 'T28',
+      h('select', { className: 'prop-select', style: { width: '100%' }, value: ringConfig.process_node || 'T180',
         onChange: e => onChange({ process_node: e.target.value }) },
-        h('option', { value: 'T28' }, 'T28'),
-        h('option', { value: 'T180' }, 'T180'))
+        h('option', { value: 'T180' }, 'T180'),
+        h('option', { value: 'T28' }, 'T28'))
     ),
 
     // Placement Order
@@ -1109,239 +996,20 @@ function RingConfigEditorComponent({ ringConfig, onChange }) {
   );
 }
 
-// ---- BatchPropertyEditorComponent ----
-function BatchPropertyEditorComponent({ instances, ringConfig, onChange, pendingChanges }) {
-  const processNode = String(ringConfig?.process_node || 'T180').toUpperCase();
-  const isT28 = processNode.includes('28');
-
-  // Compute common/shared values across selection
-  const count = instances.length;
-  const getCommonValue = (key) => {
-    const vals = instances.map(i => i[key]);
-    const first = vals[0];
-    return vals.every(v => v === first) ? first : undefined;
-  };
-  // Merge: pending changes override common values for display
-  const pending = pendingChanges || {};
-  const commonDevice = 'device' in pending ? pending.device : getCommonValue('device');
-  const commonDomain = 'domain' in pending ? pending.domain : getCommonValue('domain');
-  const commonDirection = 'direction' in pending ? pending.direction : getCommonValue('direction');
-  const commonType = getCommonValue('type');
-
-  // Device types present
-  const deviceTypes = [...new Set(instances.map(i => String(i.device || '').toUpperCase()))];
-
-  // Check if all are IO pad business (not corner/filler)
-  const allPadBusiness = instances.every(inst => {
-    const t = String(inst.type || '').toLowerCase();
-    const d = String(inst.device || '').toUpperCase();
-    return t !== 'corner' && t !== 'filler' && t !== 'blank' && t !== 'cut' &&
-           !d.includes('CORNER') && !d.includes('FILLER') && !d.includes('RCUT') && d !== 'BLANK';
-  });
-
-  // Pin connection: check if all have same pin key set
-  const pinSigs = instances.map(i => {
-    const pc = i.pin_connection;
-    if (!pc || typeof pc !== 'object' || Array.isArray(pc)) return null;
-    return JSON.stringify(Object.keys(pc).sort());
-  });
-  const commonPinSig = pinSigs.every(s => s === pinSigs[0]) ? pinSigs[0] : null;
-
-  // Use first instance as pin template
-  const pinTemplate = commonPinSig ? instances[0].pin_connection : null;
-
-  const [pinRows, setPinRows] = useState([]);
-  const [deviceSearch, setDeviceSearch] = useState(null);
-  const [deviceOpen, setDeviceOpen] = useState(false);
-  const [vdomainSearch, setVdomainSearch] = useState(null);
-  const makePinRowId = () => `bpr_${Math.random().toString(36).slice(2,9)}`;
-
-  useEffect(() => {
-    if (pinTemplate && typeof pinTemplate === 'object' && !Array.isArray(pinTemplate)) {
-      setPinRows(prev => Object.entries(pinTemplate).map(([pin, entry], i) => ({
-        id: (prev[i] && prev[i].pin === pin) ? prev[i].id : makePinRowId(),
-        pin,
-        label: typeof entry === 'object' ? String(entry.label ?? '') : String(entry ?? ''),
-      })));
-    } else {
-      setPinRows([]);
-    }
-  }, [commonPinSig]);
-
-  // Device suggestions
-  const getSuggestedDevices = () => {
-    if (!allPadBusiness) return [];
-    return getSupportedDevicesForProcess(processNode);
-  };
-  const suggestedDevices = getSuggestedDevices();
-  const currentSearch = deviceSearch !== null ? deviceSearch : (commonDevice || '');
-  const filteredDevices = suggestedDevices.filter(d => d.toLowerCase().includes(currentSearch.toLowerCase())).slice(0, 24);
-
-  const commitPinRows = (rows) => {
-    const cfg = {};
-    rows.forEach(r => { if (r.pin.trim()) cfg[r.pin.trim()] = { label: r.label }; });
-    onChange({ pin_connection: Object.keys(cfg).length ? cfg : undefined });
-  };
-  const handlePinNameChange = (id, val) => setPinRows(prev => prev.map(r => r.id === id ? { ...r, pin: val } : r));
-  const handlePinNameBlur = (id) => { const rows = pinRows.map(r => r.id === id ? { ...r, pin: r.pin.trim() } : r); setPinRows(rows); commitPinRows(rows); };
-  const handlePinLabelChange = (id, label) => { const rows = pinRows.map(r => r.id === id ? { ...r, label } : r); setPinRows(rows); commitPinRows(rows); };
-  const handlePinDelete = (id) => { const rows = pinRows.filter(r => r.id !== id); setPinRows(rows); commitPinRows(rows); };
-  const handleAddPin = () => { setPinRows(prev => [...prev, { id: makePinRowId(), pin: `PIN_${prev.length + 1}`, label: '' }]); };
-  const handleAutoFill = () => {
-    // Use first instance as template for auto-fill
-    const gen = buildPinConfigTemplate({ processNode: ringConfig?.process_node, device: instances[0].device, instanceName: instances[0].name, domain: instances[0].domain, pinConfigProfiles: ringConfig?.pin_connection_profiles });
-    if (gen) onChange({ pin_connection: gen });
-  };
-
-  const labelStyle = { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b7280', marginBottom: 4, marginTop: 10 };
-  const rowStyle = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 };
-  const mixedIndicator = h('span', { style: { fontSize: 9, color: '#f59e0b', fontWeight: 600, marginLeft: 4 } }, '(mixed)');
-  const inputCls = 'prop-input';
-  const selectCls = 'prop-select';
-
-  const fields = [];
-
-  // Summary
-  fields.push(h('div', { key: 'summary', style: { ...labelStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-    h('span', null, `BATCH EDIT (${count})`),
-    h('span', { style: { fontSize: 9, color: '#3b82f6', fontWeight: 600 } }, `${deviceTypes.length} type${deviceTypes.length > 1 ? 's' : ''}`)
-  ));
-
-  // Device type list
-  fields.push(h('div', { key: 'types', style: { fontSize: 10, color: '#6b7280', marginBottom: 8, lineHeight: 1.5 } },
-    deviceTypes.slice(0, 6).map((dt, i) => h('span', { key: i, style: { background: '#f3f4f6', padding: '1px 5px', borderRadius: 3, marginRight: 4, fontFamily: 'monospace', fontSize: 10 } }, dt)),
-    deviceTypes.length > 6 && h('span', { style: { color: '#9ca3af' } }, `+${deviceTypes.length - 6} more`)
-  ));
-
-  // Device (batch change)
-  if (allPadBusiness) {
-    fields.push(h('div', { key: 'device', style: labelStyle }, 'DEVICE', commonDevice === undefined && mixedIndicator),
-      h('div', { style: { ...rowStyle, position: 'relative', flex: 1 } },
-        h('input', {
-          className: inputCls, style: { width: '100%' },
-          value: currentSearch, placeholder: commonDevice === undefined ? '(mixed — type to set all)' : 'Type or choose device',
-          onFocus: () => { setDeviceSearch(commonDevice || ''); setDeviceOpen(true); },
-          onBlur: () => setTimeout(() => { setDeviceOpen(false); setDeviceSearch(null); }, 130),
-          onChange: e => { setDeviceSearch(e.target.value); onChange({ device: e.target.value }); setDeviceOpen(true); },
-        }),
-        deviceOpen && filteredDevices.length > 0 && h('div', {
-          style: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, zIndex: 50, maxHeight: 140, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-        }, ...filteredDevices.map(d => h('div', {
-          key: d,
-          style: { padding: '6px 10px', cursor: 'pointer', fontSize: 12, borderRadius: 4 },
-          onMouseDown: e => { e.preventDefault(); onChange({ device: d }); setDeviceSearch(null); setDeviceOpen(false); }
-        }, d)))
-      )
-    );
-  }
-
-  // Domain
-  if (allPadBusiness && !isT28) {
-    fields.push(h('div', { key: 'domain', style: labelStyle }, 'DOMAIN', commonDomain === undefined && mixedIndicator),
-      h('div', { style: rowStyle },
-        h('select', { className: selectCls, style: { flex: 1 }, value: commonDomain || '',
-          onChange: e => onChange({ domain: e.target.value === '' ? null : e.target.value }) },
-          h('option', { value: '' }, commonDomain === undefined ? '(mixed)' : 'null'),
-          h('option', { value: 'digital' }, 'digital'),
-          h('option', { value: 'analog' }, 'analog'))));
-  }
-
-  // Direction
-  if (allPadBusiness) {
-    const anyDigital = instances.some(i => classifyDeviceForProcess(processNode, i.device) === 'digital');
-    if (anyDigital || !isT28) {
-      fields.push(h('div', { key: 'direction', style: labelStyle }, 'DIRECTION', commonDirection === undefined && mixedIndicator),
-        h('div', { style: rowStyle },
-          h('select', { className: selectCls, style: { flex: 1 }, value: commonDirection || '',
-            onChange: e => onChange({ direction: e.target.value === '' ? undefined : e.target.value }) },
-            h('option', { value: '' }, commonDirection === undefined ? '(mixed)' : 'unset'),
-            h('option', { value: 'input' }, 'input'),
-            h('option', { value: 'output' }, 'output'))));
-    }
-  }
-
-  // Voltage Domain (T28 draft mode batch) — autocomplete with existing domains
-  if (allPadBusiness && isT28 && useIORingStore.getState().editorMode === 'draft') {
-    const commonVD = 'voltage_domain' in pending ? pending.voltage_domain : getCommonValue('voltage_domain');
-    const currentVD = vdomainSearch !== null ? vdomainSearch : (commonVD || '');
-    const existingDomains = collectVoltageDomains(useIORingStore.getState().graph);
-    const filteredSuggestions = existingDomains.filter(d => d !== currentVD);
-    fields.push(h('div', { key: 'vdomain', style: labelStyle }, 'VOLTAGE DOMAIN', commonVD === undefined && mixedIndicator),
-      h('div', { style: { ...rowStyle, position: 'relative', width: '100%' } },
-        h('input', {
-          className: inputCls, style: { width: '100%' },
-          value: currentVD,
-          placeholder: commonVD === undefined ? '(mixed — type to set all)' : 'e.g. AVDD_AVSS, domain_1',
-          onChange: e => { setVdomainSearch(e.target.value); onChange({ voltage_domain: e.target.value || null }); },
-          onBlur: () => setTimeout(() => setVdomainSearch(null), 150)
-        }),
-        filteredSuggestions.length > 0 ? h('div', {
-          style: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, zIndex: 50, maxHeight: 80, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-        }, ...filteredSuggestions.map(d => h('div', {
-          key: d,
-          style: { padding: '4px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 },
-          onMouseDown: e => { e.preventDefault(); setVdomainSearch(d); onChange({ voltage_domain: d }); }
-        },
-          h('span', { style: { display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: getVoltageDomainColor(d), flexShrink: 0 } }),
-          h('span', null, d)
-        ))) : null
-      ));
-  }
-
-  // Pin connection (only if all have same pin key set, hidden in draft mode)
-  if (allPadBusiness && commonPinSig && useIORingStore.getState().editorMode !== 'draft') {
-    const pinLabel = h('div', { key: 'pin_header', style: { ...labelStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-      h('span', null, 'PIN CONNECTION (batch)'),
-      h('div', { style: { display: 'flex', gap: 5 } },
-        h('button', { style: { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 10 }, onClick: handleAutoFill }, 'Auto Fill'),
-        h('button', { style: { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 10 }, onClick: handleAddPin }, '+ Pin')
-      )
-    );
-    const processLabel = h('div', { style: { fontSize: 10, color: '#9ca3af', marginBottom: 4 } }, `Applies to ${count} instances`);
-    const pinRowElems = pinRows.map(row =>
-      h('div', { key: row.id, className: 'pin-row' },
-        h('input', { className: 'pin-input', value: row.pin, style: { width: 64, fontFamily: 'monospace', color: '#374151' },
-          onChange: e => handlePinNameChange(row.id, e.target.value), onBlur: () => handlePinNameBlur(row.id) }),
-        h('input', { className: 'pin-input', value: row.label, style: { flex: 1 },
-          onChange: e => handlePinLabelChange(row.id, e.target.value) }),
-        h('button', { className: 'pin-del-btn', onClick: () => handlePinDelete(row.id) }, '×')
-      )
-    );
-    fields.push(pinLabel, processLabel, ...pinRowElems);
-  } else if (allPadBusiness && !commonPinSig) {
-    fields.push(h('div', { key: 'pin_mixed', style: { ...labelStyle, color: '#f59e0b' } }, 'PIN CONNECTION'),
-      h('div', { style: { fontSize: 11, color: '#9ca3af', padding: '4px 0' } }, 'Mixed pin structures — select same-type devices to batch edit pins'));
-  }
-
-  return h('div', null, ...fields);
-}
-
 // ---- InspectorPanelComponent ----
 function InspectorPanelComponent() {
-  const { graph, selectedId, selectedIds, updateInstance, updateInstances, updateInstancesPinConnection, updateRingConfig, editorMode } = useIORingStore();
+  const { graph, selectedId, selectedIds, updateInstance, updateInstancesPinConnection, updateRingConfig } = useIORingStore();
   const panelRef = useRef(null);
   const [localData, setLocalData] = useState(null);
-  const [batchData, setBatchData] = useState({});
   const [isDirty, setIsDirty] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isDirtyRef = useRef(false);
   const localDataRef = useRef(null);
-  const batchDataRef = useRef({});
   const handleSaveRef = useRef(null);
 
   const selectedInstance = selectedId ? graph.instances.find(i => i.id === selectedId) : null;
-  const selectedInstances = selectedIds.map(id => graph.instances.find(i => i.id === id)).filter(Boolean);
-  const isBatchMode = selectedIds.length > 1 && selectedInstances.length > 1;
 
-  // Check if all selected are pad business (not corner/filler)
-  const allPadBusiness = isBatchMode && selectedInstances.every(inst => {
-    const t = String(inst.type || '').toLowerCase();
-    const d = String(inst.device || '').toUpperCase();
-    return t !== 'corner' && t !== 'filler' && t !== 'blank' && t !== 'cut' &&
-           !d.includes('CORNER') && !d.includes('FILLER') && !d.includes('RCUT') && d !== 'BLANK';
-  });
-
-  // Compute compatible-pin-batch IDs for single-instance mode
+  // Compute compatible-pin-batch IDs (multi-select instances with same pin-name set)
   const supportsPinBatch = (inst) => {
     if (!inst) return false;
     const t = String(inst.type || '').toLowerCase();
@@ -1355,78 +1023,34 @@ function InspectorPanelComponent() {
     return JSON.stringify(Object.keys(pc).sort());
   };
   const targetSig = selectedInstance ? pinSig(selectedInstance) : null;
-  const compatiblePinBatchIds = (!isBatchMode && selectedInstance && supportsPinBatch(selectedInstance) && selectedIds.length > 1 && targetSig)
+  const compatiblePinBatchIds = (selectedInstance && supportsPinBatch(selectedInstance) && selectedIds.length > 1 && targetSig)
     ? selectedIds.filter(id => { const inst = graph.instances.find(i => i.id === id); return inst && supportsPinBatch(inst) && pinSig(inst) === targetSig; })
     : [];
-
-  // Auto-save pending changes before selection changes
-  // Use content comparison (not reference) since Zustand creates new arrays each update
-  const prevSelectedIdRef = useRef(selectedId);
-  const prevSelectedIdsKeyRef = useRef(selectedIds.join(','));
-  useEffect(() => {
-    const idChanged = prevSelectedIdRef.current !== selectedId;
-    const newKey = selectedIds.join(',');
-    const idsChanged = prevSelectedIdsKeyRef.current !== newKey;
-    if ((idChanged || idsChanged) && isDirtyRef.current) {
-      const oldKey = prevSelectedIdsKeyRef.current;
-      const oldIds = oldKey ? oldKey.split(',') : [];
-      const oldId = prevSelectedIdRef.current;
-      const draft = batchDataRef.current && Object.keys(batchDataRef.current).length > 0
-        ? batchDataRef.current
-        : localDataRef.current;
-      if (draft && Object.keys(draft).length > 0) {
-        if (oldIds.length > 1) {
-          updateInstances(oldIds, draft);
-        } else if (oldId) {
-          updateInstance(oldId, draft);
-        }
-        setIsDirty(false); isDirtyRef.current = false;
-      }
-    }
-    prevSelectedIdRef.current = selectedId;
-    prevSelectedIdsKeyRef.current = newKey;
-  }, [selectedId, selectedIds]);
 
   useEffect(() => {
     const d = selectedInstance ? { ...selectedInstance } : null;
     setLocalData(d); localDataRef.current = d;
-    setBatchData({}); batchDataRef.current = {};
     setIsDirty(false); isDirtyRef.current = false;
   }, [selectedId, graph.instances]);
 
   useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
   useEffect(() => { localDataRef.current = localData; }, [localData]);
-  useEffect(() => { batchDataRef.current = batchData; }, [batchData]);
 
+  // Updated every render so the event listener always has fresh closures
   handleSaveRef.current = () => {
     if (!isDirtyRef.current) return;
-    if (isBatchMode && allPadBusiness) {
-      // Batch mode: apply changes to all selected instances
-      const draft = batchDataRef.current;
-      if (!draft || Object.keys(draft).length === 0) return;
-      const ids = selectedIds;
-      if (draft.pin_connection) {
-        updateInstancesPinConnection(ids, draft.pin_connection);
-        const withoutPin = { ...draft }; delete withoutPin.pin_connection;
-        if (Object.keys(withoutPin).length > 0) updateInstances(ids, withoutPin);
-      } else {
-        updateInstances(ids, draft);
-      }
+    const draft = localDataRef.current;
+    if (!draft || !selectedId) return;
+    const sourceInst = graph.instances.find(i => i.id === selectedId);
+    const sourcePin = sourceInst ? sourceInst.pin_connection : undefined;
+    const draftPin  = draft.pin_connection;
+    const pinChanged = JSON.stringify(normalizePinConfig(sourcePin)) !== JSON.stringify(normalizePinConfig(draftPin));
+    if (pinChanged && compatiblePinBatchIds.length > 1) {
+      updateInstancesPinConnection(compatiblePinBatchIds, draftPin);
+      const withoutPin = { ...draft }; delete withoutPin.pin_connection;
+      updateInstance(selectedId, withoutPin);
     } else {
-      // Single instance mode
-      const draft = localDataRef.current;
-      if (!draft || !selectedId) return;
-      const sourceInst = graph.instances.find(i => i.id === selectedId);
-      const sourcePin = sourceInst ? sourceInst.pin_connection : undefined;
-      const draftPin = draft.pin_connection;
-      const pinChanged = JSON.stringify(normalizePinConfig(sourcePin)) !== JSON.stringify(normalizePinConfig(draftPin));
-      if (pinChanged && compatiblePinBatchIds.length > 1) {
-        updateInstancesPinConnection(compatiblePinBatchIds, draftPin);
-        const withoutPin = { ...draft }; delete withoutPin.pin_connection;
-        updateInstance(selectedId, withoutPin);
-      } else {
-        updateInstance(selectedId, draft);
-      }
+      updateInstance(selectedId, draft);
     }
     setIsDirty(false); isDirtyRef.current = false;
   };
@@ -1443,20 +1067,13 @@ function InspectorPanelComponent() {
   }, []);
 
   const handleInstanceChange = (partial) => { setLocalData(prev => ({ ...prev, ...partial })); setIsDirty(true); };
-  const handleBatchChange = (partial) => { setBatchData(prev => ({ ...prev, ...partial })); setIsDirty(true); };
   const handleSave = () => { if (handleSaveRef.current) handleSaveRef.current(); };
-
-  // Determine header text
-  const headerText = collapsed ? '' : (isBatchMode && allPadBusiness
-    ? `Batch Edit (${selectedInstances.length})`
-    : selectedInstance ? 'Instance Properties' : 'Ring Config');
 
   return h('div', { className: `inspector-panel${collapsed ? ' collapsed' : ''}`, ref: panelRef },
     h('div', { className: 'inspector-header' },
-      !collapsed && h('span', null, headerText),
-      !collapsed && editorMode === 'draft' && h('span', { style: { fontSize: 10, color: '#1d4ed8', fontWeight: 600, background: '#dbeafe', padding: '1px 5px', borderRadius: 3, marginLeft: 4 } }, 'DRAFT'),
-      !collapsed && isBatchMode && h('span', { style: { fontSize: 10, color: '#3b82f6', fontWeight: 600 } },
-        `${selectedInstances.length} instances`),
+      !collapsed && h('span', null, selectedInstance ? 'Instance Properties' : 'Ring Config'),
+      !collapsed && selectedIds.length > 1 && h('span', { style: { fontSize: 10, color: '#6b7280' } },
+        `${selectedIds.length} sel${compatiblePinBatchIds.length > 1 ? ` · ${compatiblePinBatchIds.length} pin-batch` : ''}`),
       h('button', {
         className: 'inspector-toggle',
         title: collapsed ? 'Expand panel' : 'Collapse panel',
@@ -1465,17 +1082,15 @@ function InspectorPanelComponent() {
       }, collapsed ? '▶' : '◀')
     ),
     h('div', { className: 'inspector-body' },
-      isBatchMode && allPadBusiness
-        ? h(BatchPropertyEditorComponent, { instances: selectedInstances, ringConfig: graph.ring_config, onChange: handleBatchChange, pendingChanges: batchData })
-        : selectedInstance && localData
-          ? h(PropertyEditorComponent, { instance: localData, ringConfig: graph.ring_config, onChange: handleInstanceChange })
-          : h(RingConfigEditorComponent, { ringConfig: graph.ring_config, onChange: partial => updateRingConfig(partial) })
+      selectedInstance && localData
+        ? h(PropertyEditorComponent, { instance: localData, ringConfig: graph.ring_config, onChange: handleInstanceChange })
+        : h(RingConfigEditorComponent, { ringConfig: graph.ring_config, onChange: partial => updateRingConfig(partial) })
     ),
-    (selectedInstance || (isBatchMode && allPadBusiness)) && h('button', {
+    selectedInstance && h('button', {
       className: `save-btn ${isDirty ? 'dirty' : 'clean'}`,
       onClick: isDirty ? handleSave : undefined,
       disabled: !isDirty
-    }, isDirty ? (isBatchMode ? `Save to ${selectedInstances.length} Items` : 'Save Changes') : 'No Changes')
+    }, isDirty ? 'Save Changes' : 'No Changes')
   );
 }
 
@@ -1504,72 +1119,9 @@ function ContextMenuComponent({ x, y, items, onClose }) {
   );
 }
 
-// ---- ValidationPanelComponent ----
-function ValidationPanelComponent() {
-  const { graph, editorMode } = useIORingStore();
-  const [collapsed, setCollapsed] = useState(false);
-
-  const sides = ['top', 'right', 'bottom', 'left'];
-  const sideCounts = {};
-  sides.forEach(side => {
-    sideCounts[side] = graph.instances.filter(i => i.side === side && !isFillerLike(i)).length;
-  });
-  const cornerLocs = ['top_left', 'top_right', 'bottom_left', 'bottom_right'];
-  const filledCorners = graph.instances.filter(i => i.side === 'corner').map(i => resolveCornerLocation(i)).filter(Boolean);
-  const missingCorners = cornerLocs.filter(loc => !filledCorners.includes(loc));
-
-  const checks = [];
-  // 1. Ring closure: every side must have at least 1 pad
-  const emptySides = sides.filter(s => sideCounts[s] === 0);
-  if (emptySides.length > 0) {
-    checks.push({ level: 'error', msg: `Empty sides: ${emptySides.join(', ')} — ring is not closed` });
-  } else {
-    checks.push({ level: 'pass', msg: 'All 4 sides have at least 1 pad (ring closed)' });
-  }
-  // 2. Corner completeness
-  if (missingCorners.length > 0) {
-    checks.push({ level: 'warn', msg: `Missing corners: ${missingCorners.join(', ')}` });
-  } else {
-    checks.push({ level: 'pass', msg: 'All 4 corners are filled' });
-  }
-  // 3. Side count parity (T28 only)
-  const processNode = String(graph.ring_config?.process_node || '').toUpperCase();
-  if (processNode.includes('28')) {
-    const lrMatch = sideCounts.left === sideCounts.right;
-    const tbMatch = sideCounts.top === sideCounts.bottom;
-    if (!lrMatch) checks.push({ level: 'warn', msg: `Left/Right count mismatch: ${sideCounts.left} vs ${sideCounts.right}` });
-    else checks.push({ level: 'pass', msg: `Left/Right count matches: ${sideCounts.left}` });
-    if (!tbMatch) checks.push({ level: 'warn', msg: `Top/Bottom count mismatch: ${sideCounts.top} vs ${sideCounts.bottom}` });
-    else checks.push({ level: 'pass', msg: `Top/Bottom count matches: ${sideCounts.top}` });
-  }
-
-  const errorCount = checks.filter(c => c.level === 'error').length;
-  const warnCount = checks.filter(c => c.level === 'warn').length;
-  const badgeClass = errorCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass';
-  const badgeLabel = errorCount > 0 ? `${errorCount} error` : warnCount > 0 ? `${warnCount} warn` : 'OK';
-
-  return h('div', { className: `validation-panel${collapsed ? ' collapsed' : ''}` },
-    h('div', { className: 'validation-header', onClick: () => setCollapsed(c => !c) },
-      h('span', { className: `validation-badge ${badgeClass}` }, badgeLabel),
-      h('span', { style: { fontWeight: 600, color: '#374151' } }, 'Ring Validation'),
-      h('span', { style: { marginLeft: 'auto', fontSize: 10, color: '#9ca3af' } }, collapsed ? '▶' : '▼')
-    ),
-    !collapsed && h('div', { className: 'validation-items' },
-      ...checks.map((c, i) =>
-        h('div', { key: i, className: 'validation-item' },
-          h('span', { className: 'validation-icon' },
-            c.level === 'pass' ? '✓' : c.level === 'warn' ? '⚠' : '✗'
-          ),
-          h('span', { className: `validation-msg${c.level === 'warn' ? ' warning' : ''}${c.level === 'error' ? ' error' : ''}` }, c.msg)
-        )
-      )
-    )
-  );
-}
-
 // ---- RingCanvasComponent ----
 function RingCanvasComponent() {
-  const { graph, selectedIds, selectInstance, selectInstances, clearSelection, moveInstance, moveInstances, copyInstancesToSide, deleteInstances, copySelection, pasteInstance, editorMode, addCornerAtLocation } = useIORingStore();
+  const { graph, selectedIds, selectInstance, selectInstances, clearSelection, moveInstance, moveInstances, copyInstancesToSide, deleteInstances, copySelection, pasteInstance } = useIORingStore();
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState({ x: -50, y: -50, w: 1200, h: 900 });
   const [isPanning, setIsPanning] = useState(false);
@@ -1625,44 +1177,16 @@ function RingCanvasComponent() {
   const leftInstances = getSideVisualInstances(graph, 'left');
   const rightInstances = getSideVisualInstances(graph, 'right');
 
-  // Separate outer pads from inner pads for width computation
-  const isOuterPad = (i) => String(i.type||'').toLowerCase() !== 'inner_pad' && !isFillerLike(i);
-  const isRingPad = (i) => !isFillerLike(i); // outer + inner pads, excluding fillers
-  const topOuter = topInstances.filter(isOuterPad);
-  const bottomOuter = bottomInstances.filter(isOuterPad);
-  const leftOuter = leftInstances.filter(isOuterPad);
-  const rightOuter = rightInstances.filter(isOuterPad);
+  const topWidth = topInstances.reduce((s, i) => s + getInstWidth(i), 0);
+  const bottomWidth = bottomInstances.reduce((s, i) => s + getInstWidth(i), 0);
+  const leftHeight = leftInstances.reduce((s, i) => s + getInstWidth(i), 0);
+  const rightHeight = rightInstances.reduce((s, i) => s + getInstWidth(i), 0);
 
-  const topWidth = topInstances.filter(isRingPad).reduce((s, i) => s + getInstWidth(i), 0);
-  const bottomWidth = bottomInstances.filter(isRingPad).reduce((s, i) => s + getInstWidth(i), 0);
-  const leftHeight = leftInstances.filter(isRingPad).reduce((s, i) => s + getInstWidth(i), 0);
-  const rightHeight = rightInstances.filter(isRingPad).reduce((s, i) => s + getInstWidth(i), 0);
-
-  const chipW = Math.max(topWidth + cTL + cTR, bottomWidth + cBL + cBR);
-  const chipH = Math.max(leftHeight + cTL + cBL, rightHeight + cTR + cBR);
+  const chipW = Math.max(topWidth + cTL + cTR, bottomWidth + cBL + cBR, 300);
+  const chipH = Math.max(leftHeight + cTL + cBL, rightHeight + cTR + cBR, 200);
 
   const outerX = 0, outerY = 0;
   const outerW = chipW, outerH = chipH;
-
-  // Adaptive spacing: distribute ALL ring pads (outer + inner) evenly across side
-  const computeAdaptiveCursor = (instances, availableLen, startOffset) => {
-    const ringInsts = instances.filter(isRingPad);
-    const totalPadLen = ringInsts.reduce((s, i) => s + getInstWidth(i), 0);
-    const gap = ringInsts.length > 1 ? Math.max(0, (availableLen - totalPadLen) / (ringInsts.length + 1)) : 0;
-    let cursor = startOffset + gap;
-    const positions = [];
-    ringInsts.forEach(inst => {
-      const iw = getInstWidth(inst);
-      positions.push({ inst, x: cursor, w: iw });
-      cursor += iw + gap;
-    });
-    return positions;
-  };
-
-  const topPositions = computeAdaptiveCursor(topInstances, chipW - cTL - cTR, outerX + cTL);
-  const bottomPositions = computeAdaptiveCursor(bottomInstances, chipW - cBL - cBR, outerX + cBL);
-  const leftPositions = computeAdaptiveCursor(leftInstances, chipH - cTL - cBL, outerY + cTL);
-  const rightPositions = computeAdaptiveCursor(rightInstances, chipH - cTR - cBR, outerY + cTR);
   const innerX = SIDE_THICKNESS, innerY = SIDE_THICKNESS;
   const innerW = chipW - 2 * SIDE_THICKNESS, innerH = chipH - 2 * SIDE_THICKNESS;
 
@@ -1682,30 +1206,36 @@ function RingCanvasComponent() {
     else instRects.push({ inst: null, x, y, w, h, isCorner: true, loc });
   });
 
-  // Render all ring pads (outer + inner) inline in the same row using positions from computeAdaptiveCursor
-
-  // Top side — all pads inline
-  topPositions.forEach(({ inst, x, w: iw }) => {
-    const isInner = String(inst.type||'').toLowerCase() === 'inner_pad';
-    instRects.push({ inst, x, y: outerY, w: iw, h: SIDE_THICKNESS, isTop: true, isInnerRow: isInner });
+  // Top side — pads start right after top-left corner
+  let topCursor = outerX + cTL;
+  topInstances.forEach(inst => {
+    const iw = getInstWidth(inst);
+    instRects.push({ inst, x: topCursor, y: outerY, w: iw, h: SIDE_THICKNESS, isTop: true });
+    topCursor += iw;
   });
 
-  // Bottom side — all pads inline
-  bottomPositions.forEach(({ inst, x, w: iw }) => {
-    const isInner = String(inst.type||'').toLowerCase() === 'inner_pad';
-    instRects.push({ inst, x, y: outerY + outerH - SIDE_THICKNESS, w: iw, h: SIDE_THICKNESS, isBottom: true, isInnerRow: isInner });
+  // Bottom side
+  let bottomCursor = outerX + cBL;
+  bottomInstances.forEach(inst => {
+    const iw = getInstWidth(inst);
+    instRects.push({ inst, x: bottomCursor, y: outerY + outerH - SIDE_THICKNESS, w: iw, h: SIDE_THICKNESS, isBottom: true });
+    bottomCursor += iw;
   });
 
-  // Left side — all pads inline
-  leftPositions.forEach(({ inst, x: y, w: iw }) => {
-    const isInner = String(inst.type||'').toLowerCase() === 'inner_pad';
-    instRects.push({ inst, x: outerX, y, w: SIDE_THICKNESS, h: iw, isLeft: true, isInnerRow: isInner });
+  // Left side
+  let leftCursor = outerY + cTL;
+  leftInstances.forEach(inst => {
+    const iw = getInstWidth(inst);
+    instRects.push({ inst, x: outerX, y: leftCursor, w: SIDE_THICKNESS, h: iw, isLeft: true });
+    leftCursor += iw;
   });
 
-  // Right side — all pads inline
-  rightPositions.forEach(({ inst, x: y, w: iw }) => {
-    const isInner = String(inst.type||'').toLowerCase() === 'inner_pad';
-    instRects.push({ inst, x: outerX + outerW - SIDE_THICKNESS, y, w: SIDE_THICKNESS, h: iw, isRight: true, isInnerRow: isInner });
+  // Right side
+  let rightCursor = outerY + cTR;
+  rightInstances.forEach(inst => {
+    const iw = getInstWidth(inst);
+    instRects.push({ inst, x: outerX + outerW - SIDE_THICKNESS, y: rightCursor, w: SIDE_THICKNESS, h: iw, isRight: true });
+    rightCursor += iw;
   });
 
   const svgToClient = (svgX, svgY) => {
@@ -1961,9 +1491,6 @@ function RingCanvasComponent() {
       { label: 'PFILLER10_G', color: '#C0C0C0' }, { label: 'PFILLER20_G', color: '#C0C0C0' },
       { label: 'PRCUTA_G (CUT)', color: '#A0A0A0' },
     ]},
-    { title: 'Inner Pads', items: [
-      { label: 'inner_pad (diagonal stripes)', color: '#b45309' },
-    ]},
   ] : [
     { title: 'Digital IO (Green)', items: [
       { label: 'PVDD1CDG', color: '#32CD32' }, { label: 'PVSS1CDG', color: '#228B22' },
@@ -1983,33 +1510,6 @@ function RingCanvasComponent() {
     const { inst, x, y, w, h: rh, isCorner, loc } = rectData;
     if (!inst) {
       // Empty corner placeholder
-      const isDraftMode = editorMode === 'draft';
-      if (isDraftMode && loc) {
-        // Draft mode: clickable "Add Corner" placeholder
-        return h('g', {
-          key: `empty-corner-${loc}`,
-          onClick: () => addCornerAtLocation(loc),
-          style: { cursor: 'pointer' },
-        },
-          h('rect', {
-            x, y, width: w, height: rh,
-            fill: '#fef3c7', stroke: '#f59e0b', strokeWidth: 1.5,
-            strokeDasharray: '6 3', rx: 4, opacity: 0.85
-          }),
-          h('text', {
-            x: x + w / 2, y: y + rh / 2 - 6,
-            textAnchor: 'middle', dy: '.3em',
-            fontSize: Math.max(6, Math.min(10, rh * 0.14)),
-            fill: '#92400e', fontWeight: 600, style: { userSelect: 'none', pointerEvents: 'none' }
-          }, '+ Corner'),
-          h('text', {
-            x: x + w / 2, y: y + rh / 2 + 6,
-            textAnchor: 'middle', dy: '.3em',
-            fontSize: Math.max(5, Math.min(8, rh * 0.1)),
-            fill: '#a16207', style: { userSelect: 'none', pointerEvents: 'none' }
-          }, loc.replace('_', ' '))
-        );
-      }
       return h('rect', {
         key: `empty-corner-${loc}`, x, y, width: w, height: rh,
         fill: '#eeeeee', stroke: '#cccccc', strokeWidth: 1,
@@ -2025,14 +1525,11 @@ function RingCanvasComponent() {
       || String(inst.device || '').toUpperCase().includes('FILLER')
       || String(inst.device || '').toUpperCase().includes('RCUT');
     const isCornerInst = instTypeLower === 'corner' || String(inst.device || '').toUpperCase().includes('CORNER');
-    const isInnerPadInst = instTypeLower === 'inner_pad';
 
     // Label: match old editor — "name:device" for IO pads, device/name for corner/filler
     let labelText;
     if (isCornerInst || isFillerInst) {
       labelText = inst.device || inst.name || 'UNKNOWN';
-    } else if (isInnerPadInst) {
-      labelText = `IP:${inst.name || 'pad'}`;
     } else {
       let sigName = String(inst.name || '');
       sigName = sigName.replace(/_(left|right|top|bottom)_\d+$/, '');
@@ -2088,41 +1585,17 @@ function RingCanvasComponent() {
       style: { cursor: isDragging || isPartOfDragSelection ? (dragState?.isCopy ? 'copy' : 'grabbing') : 'pointer', opacity: isDragging ? 0.4 : isPartOfDragSelection ? 0.5 : 1 }
     },
       // Selection glow effect
-      isSelected ? h('rect', {
+      isSelected && h('rect', {
         x: x - 2, y: y - 2, width: w + 4, height: rh + 4,
         fill: 'none', stroke: '#3b82f6', strokeWidth: 1.5,
         strokeOpacity: 0.5, rx: 2, pointerEvents: 'none'
-      }) : null,
+      }),
       h('rect', {
         x, y, width: w, height: rh,
         fill: color, fillOpacity: 0.8,
         stroke: strokeColor, strokeWidth,
         strokeDasharray: strokeDash
       }),
-      // Inner pad: diagonal stripe overlay + distinct dashed border
-      isInnerPadInst ? h('rect', {
-        x, y, width: w, height: rh,
-        fill: 'url(#inner-pad-stripes)',
-        stroke: '#b45309', strokeWidth: 1.5,
-        strokeDasharray: '3 2', rx: 1,
-        pointerEvents: 'none'
-      }) : null,
-      // Voltage domain dot — positioned on outer edge of pad
-      inst.voltage_domain ? (() => {
-        const dc = getVoltageDomainColor(inst.voltage_domain);
-        const dotR = Math.max(4, Math.min(7, Math.min(w, rh) * 0.18));
-        let cx, cy;
-        if (rectData.isTop)         { cx = x + w / 2; cy = y - dotR - 1; }
-        else if (rectData.isBottom) { cx = x + w / 2; cy = y + rh + dotR + 1; }
-        else if (rectData.isLeft)   { cx = x - dotR - 1; cy = y + rh / 2; }
-        else if (rectData.isRight)  { cx = x + w + dotR + 1; cy = y + rh / 2; }
-        else                        { cx = x + w / 2; cy = y - dotR - 1; }
-        return h('circle', {
-          cx, cy, r: dotR,
-          fill: dc, stroke: '#fff', strokeWidth: 1.2,
-          pointerEvents: 'none', opacity: 0.95
-        });
-      })() : null,
       textEl
     );
   };
@@ -2144,31 +1617,25 @@ function RingCanvasComponent() {
       h('defs', null,
         h('pattern', { id: 'grid', width: 20, height: 20, patternUnits: 'userSpaceOnUse' },
           h('path', { d: 'M 20 0 L 0 0 0 20', fill: 'none', stroke: 'gray', strokeWidth: 0.5, strokeOpacity: 0.1 })
-        ),
-        // Diagonal stripe pattern for inner pads
-        h('pattern', { id: 'inner-pad-stripes', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
-          h('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: 'rgba(0,0,0,0.18)', strokeWidth: 2 })
         )
       ),
       h('rect', { x: viewBox.x, y: viewBox.y, width: viewBox.w, height: viewBox.h, fill: 'url(#grid)', pointerEvents: 'none' }),
-      // Chip background (inner area) — pointerEvents:none so clicks pass through to SVG for box selection / clear
+      // Chip background (inner area)
       h('rect', {
         x: innerX, y: innerY, width: innerW, height: innerH,
-        fill: '#f9fafb', stroke: '#d1d5db', strokeWidth: 1,
-        pointerEvents: 'none'
+        fill: '#f9fafb', stroke: '#d1d5db', strokeWidth: 1
       }),
       // Chip label
       h('text', {
         x: innerX + innerW / 2, y: innerY + innerH / 2,
         textAnchor: 'middle', dominantBaseline: 'middle',
         fontSize: Math.min(innerW, innerH) * 0.08,
-        fill: '#9ca3af', style: { userSelect: 'none', pointerEvents: 'none' }
+        fill: '#9ca3af', style: { userSelect: 'none' }
       }, `${processNode} IO Ring`),
       // Ring outline
       h('rect', {
         x: outerX, y: outerY, width: outerW, height: outerH,
-        fill: 'none', stroke: '#6b7280', strokeWidth: 1,
-        pointerEvents: 'none'
+        fill: 'none', stroke: '#6b7280', strokeWidth: 1
       }),
       // Instance rectangles
       ...instRects.map((r, i) => renderInstRect(r, i)),
@@ -2219,7 +1686,7 @@ function RingCanvasComponent() {
         );
       })(),
       // Drag mode badge (top-left corner)
-      dragState?.moved ? h('g', { pointerEvents: 'none' },
+      dragState?.moved && h('g', { pointerEvents: 'none' },
         h('rect', {
           x: viewBox.x + 10, y: viewBox.y + 10, width: dragState.isCopy ? 100 : 90, height: 22,
           fill: dragState.isCopy ? '#f59e0b' : '#3b82f6', rx: 4, opacity: 0.9
@@ -2228,9 +1695,9 @@ function RingCanvasComponent() {
           x: viewBox.x + 10 + (dragState.isCopy ? 50 : 45), y: viewBox.y + 24,
           textAnchor: 'middle', fill: 'white', fontSize: 11, fontWeight: 600, style: { userSelect: 'none' }
         }, dragState.isCopy ? 'COPY (Alt)' : 'MOVE (drag)')
-      ) : null,
+      ),
       // Box selection overlay
-      boxSel ? h('rect', {
+      boxSel && h('rect', {
         x: Math.min(boxSel.x0, boxSel.x1),
         y: Math.min(boxSel.y0, boxSel.y1),
         width: Math.abs(boxSel.x1 - boxSel.x0),
@@ -2240,16 +1707,16 @@ function RingCanvasComponent() {
         strokeWidth: 1,
         strokeDasharray: '4 2',
         pointerEvents: 'none'
-      }) : null
+      })
     ),
     // Legend toggle button (shown when legend is hidden)
-    !legendVisible ? h('button', {
+    !legendVisible && h('button', {
       className: 'legend-toggle',
       onClick: () => setLegendVisible(true),
       title: 'Show legend'
-    }, 'Legend ▶') : null,
+    }, 'Legend ▶'),
     // Legend overlay
-    legendVisible ? h('div', { className: 'legend-overlay' },
+    legendVisible && h('div', { className: 'legend-overlay' },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 } },
         h('span', { style: { fontWeight: 700, color: '#374151', fontSize: 11 } },
           `Color Legend (${isT28Legend ? 'T28' : 'T180'})`
@@ -2270,45 +1737,24 @@ function RingCanvasComponent() {
             )
           )
         )
-      ),
-      // Voltage domain legend (draft mode)
-      editorMode === 'draft' ? (() => {
-        const domainSet = new Map();
-        graph.instances.forEach(inst => {
-          if (inst.voltage_domain && !domainSet.has(inst.voltage_domain)) {
-            domainSet.set(inst.voltage_domain, getVoltageDomainColor(inst.voltage_domain));
-          }
-        });
-        if (domainSet.size === 0) return null;
-        return h('div', { key: 'vd-legend' },
-          h('div', { className: 'legend-group-title' }, 'Voltage Domains'),
-          ...[...domainSet.entries()].map(([name, color]) =>
-            h('div', { key: `vd-${name}`, className: 'legend-item' },
-              h('div', { className: 'legend-swatch', style: { background: color, height: 8, borderBottom: `2px solid ${color}` } }),
-              h('span', { style: { fontSize: 10, fontFamily: 'monospace', color: '#374151' } }, name)
-            )
-          )
-        );
-      })() : null
-    ) : null,
+      )
+    ),
     // Context menu
-    contextMenu ? h(ContextMenuComponent, {
+    contextMenu && h(ContextMenuComponent, {
       x: contextMenu.x, y: contextMenu.y, items: contextMenu.items,
       onClose: () => setContextMenu(null)
-    }) : null,
+    }),
     // Hover tooltip
-    hoverTooltip && !dragState ? h('div', {
+    hoverTooltip && !dragState && h('div', {
       className: 'tooltip-overlay',
       style: { left: hoverTooltip.x + 12, top: hoverTooltip.y - 28 }
-    }, `${hoverTooltip.inst.name} [${hoverTooltip.inst.device}] ${hoverTooltip.inst.side}`) : null,
-    // Validation panel (draft and confirmation mode)
-    h(ValidationPanelComponent)
+    }, `${hoverTooltip.inst.name} [${hoverTooltip.inst.device}] ${hoverTooltip.inst.side}`)
   );
 }
 
 // ---- ToolbarComponent ----
 function ToolbarComponent() {
-  const { graph, selectedIds, undo, redo, deleteInstances, addInstance, history, editorSourcePath, editorMode } = useIORingStore();
+  const { graph, selectedIds, undo, redo, deleteInstances, addInstance, history, editorSourcePath } = useIORingStore();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -2353,117 +1799,16 @@ function ToolbarComponent() {
   };
 
   const handleConfirm = async () => {
-    const isDraftMode = editorMode === 'draft';
-    // Draft mode: validate ring closure before confirm
-    if (isDraftMode) {
-      const sides = ['top', 'right', 'bottom', 'left'];
-      const emptySides = sides.filter(s => graph.instances.filter(i => i.side === s && !isFillerLike(i)).length === 0);
-      if (emptySides.length > 0) {
-        const proceed = confirm(`Ring is not closed — empty sides: ${emptySides.join(', ')}.\n\nConfirm anyway?`);
-        if (!proceed) return;
-      }
-    }
-
-    let payload;
-    if (isDraftMode) {
-      // Pre-compute per-side outer pad indices for inner_pad position mapping
-      const sideOuterCounts = { top: 0, right: 0, bottom: 0, left: 0 };
-      graph.instances.forEach(inst => {
-        if (['top','right','bottom','left'].includes(inst.side) && String(inst.type||'').toLowerCase() !== 'inner_pad' && !isFillerLike(inst)) {
-          sideOuterCounts[inst.side]++;
-        }
-      });
-      // Build per-side: list of outer pad orders and inner pad orders, sorted
-      const sideOuterOrders = { top: [], right: [], bottom: [], left: [] };
-      const sideInnerOrders = { top: [], right: [], bottom: [], left: [] };
-      graph.instances.forEach(inst => {
-        if (!['top','right','bottom','left'].includes(inst.side) || isFillerLike(inst)) return;
-        const ord = Number.isFinite(Number(inst.order)) ? Math.max(1, Number(inst.order)) : 1;
-        if (String(inst.type||'').toLowerCase() === 'inner_pad') {
-          sideInnerOrders[inst.side].push({ inst, ord });
-        } else {
-          sideOuterOrders[inst.side].push(ord);
-        }
-      });
-      // Sort and deduplicate outer orders to build index mapping
-      const sideOuterIdxMap = { top: {}, right: {}, bottom: {}, left: {} };
-      for (const s of ['top','right','bottom','left']) {
-        const sorted = [...new Set(sideOuterOrders[s])].sort((a,b) => a - b);
-        sorted.forEach((ord, idx) => { sideOuterIdxMap[s][ord] = idx; });
-      }
-
-      // Draft mode: filter out fillers, remove pin_connections, add editor_mode flag
-      const draftInstances = graph.instances
-        .filter(inst => !isFillerLike(inst))
-        .map(inst => {
-          const { id, name, device, type, side, order, meta, pin_connection, pad_width, pad_height, ...rest } = inst;
-          const isInner = String(type||'').toLowerCase() === 'inner_pad';
-          const normalizedOrder = Number.isFinite(Number(order)) ? Math.max(1, Number(order)) : 1;
-          let position;
-          if (side === 'top' || side === 'right' || side === 'bottom' || side === 'left') {
-            if (isInner) {
-              // Inner pad: find adjacent outer pads (side_i_j format per draft_builder_T28.md)
-              // Get all instances (outer+inner) on this side sorted by order
-              const sideAll = graph.instances.filter(i => i.side === side && !isFillerLike(i))
-                .map(i => ({ id: i.id, isInner: String(i.type||'').toLowerCase() === 'inner_pad', ord: Number.isFinite(Number(i.order)) ? Math.max(1, Number(i.order)) : 1 }))
-                .sort((a, b) => a.ord - b.ord);
-              // Find the nearest preceding and following outer pad indices
-              let myOrd = normalizedOrder;
-              let idxBefore = -1, idxAfter = -1;
-              for (let k = 0; k < sideAll.length; k++) {
-                if (sideAll[k].ord >= myOrd) break;
-                if (!sideAll[k].isInner) {
-                  idxBefore = sideOuterIdxMap[side][sideAll[k].ord] ?? idxBefore;
-                }
-              }
-              // Find next outer pad after this inner pad
-              let foundSelf = false;
-              for (let k = 0; k < sideAll.length; k++) {
-                if (sideAll[k].ord >= myOrd) foundSelf = true;
-                if (foundSelf && !sideAll[k].isInner && sideAll[k].ord >= myOrd) {
-                  idxAfter = sideOuterIdxMap[side][sideAll[k].ord];
-                  break;
-                }
-              }
-              if (idxBefore < 0) idxBefore = 0;
-              if (idxAfter < 0) idxAfter = idxBefore + 1;
-              position = `${side}_${idxBefore}_${idxAfter}`;
-            } else {
-              position = `${side}_${sideOuterIdxMap[side][normalizedOrder] ?? (normalizedOrder - 1)}`;
-            }
-          } else {
-            const cornerPos = meta?.location || meta?._original_position || meta?._relative_position;
-            position = cornerPos || 'top_left';
-          }
-          const draftInst = { name, device: device || '', type: type || 'pad', position };
-          if (rest.orientation) draftInst.orientation = rest.orientation;
-          if (rest.domain) draftInst.domain = rest.domain;
-          if (rest.direction) draftInst.direction = rest.direction;
-          if (rest.voltage_domain) draftInst.voltage_domain = rest.voltage_domain;
-          return draftInst;
-        });
-      // Strip auto-derived runtime fields from ring_config for clean draft output
-      const { chip_width, chip_height, top_count, right_count, bottom_count, left_count,
-              num_pads_top, num_pads_right, num_pads_bottom, num_pads_left, ...cleanRingConfig } = graph.ring_config;
-      payload = {
-        ring_config: { ...cleanRingConfig, process_node: cleanRingConfig.process_node || 'T28' },
-        editor_mode: 'draft',
-        instances: draftInstances,
-      };
-    } else {
-      payload = exportAdapter(graph);
-    }
-
+    const exported = exportAdapter(graph);
     try {
       const res = await fetch('/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(exported)
       });
       if (res.ok) {
-        const modeLabel = isDraftMode ? 'Draft' : 'Layout';
-        document.title = `[CONFIRMED] IO Ring ${modeLabel} Editor`;
-        alert(isDraftMode ? 'Draft confirmed and submitted successfully!' : 'Layout confirmed and submitted successfully!');
+        document.title = '[CONFIRMED] IO Ring Layout Editor';
+        alert('Layout confirmed and submitted successfully!');
       } else {
         alert('Server returned error: ' + res.status);
       }
@@ -2474,7 +1819,6 @@ function ToolbarComponent() {
 
   const addMenuItems = [
     { label: 'IO Pad', type: 'pad' },
-    { label: 'Inner Pad', type: 'inner_pad' },
     isT28 ? { label: 'Filler (T28)', type: 'filler20a' } : { label: 'Filler (T180)', type: 'filler20' },
     isT28 ? { label: 'CUT', type: 'cut' } : null,
     !isT28 ? { label: 'Blank', type: 'blank' } : null,
@@ -2494,7 +1838,7 @@ function ToolbarComponent() {
     ),
     // Confirm
     h('button', { className: 'toolbar-btn confirm', onClick: handleConfirm },
-      h(IconCheck), editorMode === 'draft' ? 'Confirm Draft' : 'Confirm & Continue'
+      h(IconCheck), 'Confirm & Continue'
     ),
     h('div', { className: 'toolbar-separator' }),
     // Undo/Redo
@@ -2540,7 +1884,7 @@ function ToolbarComponent() {
 
 // ---- LayoutEditorComponent (root) ----
 function LayoutEditorComponent() {
-  const { setGraph, setEditorSourcePath, setEditorProcessNode, undo, redo, selectedIds, deleteInstances, copySelection, pasteInstance, editorMode } = useIORingStore();
+  const { setGraph, setEditorSourcePath, setEditorProcessNode, undo, redo, selectedIds, deleteInstances, copySelection, pasteInstance } = useIORingStore();
   const [loading, setLoading] = useState(true);
   const [loadMsg, setLoadMsg] = useState('Connecting to server...');
   const [error, setError] = useState(null);
@@ -2564,8 +1908,6 @@ function LayoutEditorComponent() {
         setGraph(internalGraph);
         setEditorSourcePath('__server__');
         setEditorProcessNode((json.ring_config && json.ring_config.process_node) ? json.ring_config.process_node.toUpperCase() : null);
-        var mode = window.__EDITOR_MODE__ || 'confirmation';
-        document.title = mode === 'draft' ? 'IO Ring Draft Editor' : 'IO Ring Layout Editor';
         setLoading(false);
       } catch(err) {
         setError(err.message || String(err));
@@ -2586,8 +1928,8 @@ function LayoutEditorComponent() {
         if (selectedIds.length) deleteInstances(selectedIds);
         return;
       }
-      if (e.ctrlKey && e.key === 'c' && !inInput) { e.preventDefault(); copySelection([]); return; }
-      if (e.ctrlKey && e.key === 'v' && !inInput) { e.preventDefault(); pasteInstance(null); return; }
+      if (e.ctrlKey && e.key === 'c') { e.preventDefault(); copySelection([]); return; }
+      if (e.ctrlKey && e.key === 'v') { e.preventDefault(); pasteInstance(null); return; }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -2613,10 +1955,6 @@ function LayoutEditorComponent() {
 
   return h('div', { className: 'editor-root layout-editor-root' },
     h(ToolbarComponent),
-    editorMode === 'draft' && h('div', { className: 'draft-banner' },
-      h('span', null, 'ℹ️'),
-      h('span', null, 'Draft mode — fillers and pin connections will be added automatically in the next step')
-    ),
     h('div', { className: 'main-area' },
       h(InspectorPanelComponent),
       h(RingCanvasComponent)

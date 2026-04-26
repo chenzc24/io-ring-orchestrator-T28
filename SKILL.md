@@ -5,201 +5,169 @@ description: Master coordinator for complete T28 (28nm) IO Ring generation. Hand
 
 # IO Ring Orchestrator - T28
 
-You are the master coordinator for T28 IO Ring generation. You handle the **entire** workflow as a single skill — from parsing requirements through DRC/LVS verification.
+Master coordinator for T28 IO Ring generation — entire workflow from requirements through DRC/LVS.
 
-## Scripts Path verification
+## Scripts Path Verification
 
-Auto-detect SCRIPTS_PATH from the skill's location on disk. Do NOT use a
-hard-coded placeholder — resolve it dynamically:
+Auto-detect `SCRIPTS_PATH` from this file's location. Do NOT hard-code:
 
 ```bash
-# Find skill root by locating this SKILL.md file
 SKILL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPTS_PATH="${SKILL_ROOT}/scripts"
-
-# Verify:
 ls "$SCRIPTS_PATH/validate_intent.py" || echo "ERROR: SCRIPTS_PATH not found"
 ```
 
 ## Entry Points
 
-- **User provides text requirements only** → Start at Step 0, then continue directly to Step 2 (Draft) and Step 3 (Enrichment)
-- **User provides image input (with or without text)** → Start at Step 0, then run Step 1 (Image Input Processing), then continue directly to Step 2 (Draft) and Step 3 (Enrichment)
-- **User provides draft intent graph file** → Skip to Step 3 (Enrichment)
-- **User provides final intent graph file** → Skip to Step 5 (Validation)
-- Determine entry path automatically. Do NOT run any pre-step wizard eligibility/opt-in flow.
+- **Text requirements only** → Step 0 → Step 2 (Draft) → [Step 2b if enabled] → Step 3 (Enrichment)
+- **Image input (with or without text)** → Step 0 → Step 1 (Image) → Step 2 → [Step 2b if enabled] → Step 3
+- **Draft intent graph file provided** → Skip to Step 3
+- **Final intent graph file provided** → Skip to Step 5
+- **User explicitly requests Draft Editor** (e.g. "I want to use the editor", "open draft editor", "visual editor") → Always open Step 2b regardless of `AMS_DRAFT_EDITOR`
+
+Determine entry path automatically. Do NOT run pre-step wizard eligibility/opt-in flow.
+
+## Draft Editor vs Confirmation Editor
+
+| | Draft Editor (Step 2b) | Confirmation Editor (Step 6) |
+|---|---|---|
+| **Input** | Minimal: name, position, type (optional device) | Full enriched intent graph |
+| **Pin connections** | Hidden / not generated | Visible and editable |
+| **Fillers** | Not shown (added in Step 3) | Visible and editable |
+| **Corners** | Placeholder "+ Corner" slots | All 4 must be filled |
+| **Validation** | Ring closure check | Full layout validation |
+| **Output** | Draft JSON → Step 3 | Confirmed JSON → Step 7 |
+| **Confirm button** | "Confirm Draft" | "Confirm & Continue" |
+| **Banner** | "Draft mode — fillers and pins added automatically later" | None |
 
 ## Output Path Contract (Mandatory)
 
-- Use a single workspace output root for the entire run.
-- Create `output_dir` exactly once per run and reuse it for all Step 2-9 artifacts.
-- Do not regenerate `timestamp` after Step 0.
-- Export `AMS_OUTPUT_ROOT` once in Step 0 so script-level outputs remain deterministic.
-
-Required conventions:
-
+- Single workspace output root per run; create `output_dir` once and reuse for Steps 2-9.
+- Do NOT regenerate `timestamp` after Step 0. Export `AMS_OUTPUT_ROOT` once in Step 0.
 - `AMS_OUTPUT_ROOT`: workspace-level output root
-- `output_dir`: per-run directory under `${AMS_OUTPUT_ROOT}/generated/${timestamp}`
-- DRC/LVS reports: `${AMS_OUTPUT_ROOT}` and its fixed subdirs (`drc`, `lvs`)
+- `output_dir`: `${AMS_OUTPUT_ROOT}/generated/${timestamp}`
+- DRC/LVS reports: `${AMS_OUTPUT_ROOT}/drc` and `${AMS_OUTPUT_ROOT}/lvs`
 
 ## Complete Workflow
 
 ### Step 0: Directory Setup & Parse Input
 
 ```bash
-# Resolve stable workspace root (prefer AMS_IO_AGENT_PATH, fallback to current directory)
-if [ -n "${AMS_IO_AGENT_PATH:-}" ]; then
-  WORK_ROOT="${AMS_IO_AGENT_PATH}"
-else
-  WORK_ROOT="$(pwd)"
-fi
+# Workspace root (prefer AMS_IO_AGENT_PATH, fallback to current dir)
+if [ -n "${AMS_IO_AGENT_PATH:-}" ]; then WORK_ROOT="${AMS_IO_AGENT_PATH}"; else WORK_ROOT="$(pwd)"; fi
 
-# Unified output root for script-level artifacts (DRC/LVS/PEX/screenshots fallback)
 export AMS_OUTPUT_ROOT="${WORK_ROOT}/output"
 mkdir -p "${AMS_OUTPUT_ROOT}/generated"
 
-# Create per-run directory once and reuse it across all steps
+# Per-run dir: reuse if set, else create
 if [ -n "${output_dir:-}" ] && [ -d "${output_dir}" ]; then
   echo "Reusing existing output_dir: ${output_dir}"
 else
   timestamp="${timestamp:-$(date +%Y%m%d_%H%M%S)}"
   output_dir="${AMS_OUTPUT_ROOT}/generated/${timestamp}"
 fi
-
 mkdir -p "$output_dir"
-echo "AMS_OUTPUT_ROOT=${AMS_OUTPUT_ROOT}"
-echo "output_dir=${output_dir}"
+echo "AMS_OUTPUT_ROOT=${AMS_OUTPUT_ROOT}"; echo "output_dir=${output_dir}"
 
-# Resolve Python interpreter — search project root .venv first, then skill .venv, then system.
-# Project-level .venv is preferred: all skills + the bridge share one venv.
+# Resolve Python — project-root .venv preferred (shared with bridge), then skill .venv, then system.
 PROJECT_ROOT="$(cd "${WORK_ROOT}" && while [ ! -d .venv ] && [ "$(pwd)" != "/" ]; do cd ..; done; pwd)"
-if [ -f "${PROJECT_ROOT}/.venv/Scripts/python.exe" ]; then
-  export AMS_PYTHON="${PROJECT_ROOT}/.venv/Scripts/python.exe"
-elif [ -f "${PROJECT_ROOT}/.venv/bin/python" ]; then
-  export AMS_PYTHON="${PROJECT_ROOT}/.venv/bin/python"
-elif [ -f "${SKILL_ROOT}/.venv/Scripts/python.exe" ]; then
-  export AMS_PYTHON="${SKILL_ROOT}/.venv/Scripts/python.exe"
-elif [ -f "${SKILL_ROOT}/.venv/bin/python" ]; then
-  export AMS_PYTHON="${SKILL_ROOT}/.venv/bin/python"
-elif command -v python3 &>/dev/null; then
-  export AMS_PYTHON="python3"
-elif command -v python &>/dev/null; then
-  export AMS_PYTHON="python"
-else
-  echo "ERROR: No Python interpreter found. Install Python 3.9+ and create .venv at project root."
-  return 1
-fi
+if   [ -f "${PROJECT_ROOT}/.venv/Scripts/python.exe" ]; then export AMS_PYTHON="${PROJECT_ROOT}/.venv/Scripts/python.exe"
+elif [ -f "${PROJECT_ROOT}/.venv/bin/python" ];         then export AMS_PYTHON="${PROJECT_ROOT}/.venv/bin/python"
+elif [ -f "${SKILL_ROOT}/.venv/Scripts/python.exe" ];   then export AMS_PYTHON="${SKILL_ROOT}/.venv/Scripts/python.exe"
+elif [ -f "${SKILL_ROOT}/.venv/bin/python" ];           then export AMS_PYTHON="${SKILL_ROOT}/.venv/bin/python"
+elif command -v python3 &>/dev/null;                    then export AMS_PYTHON="python3"
+elif command -v python  &>/dev/null;                    then export AMS_PYTHON="python"
+else echo "ERROR: No Python 3.9+ found. Create .venv at project root."; return 1; fi
 echo "AMS_PYTHON=${AMS_PYTHON}"
 
-# Resolve Layout Editor mode from .env (default: off)
-if [ "${AMS_LAYOUT_EDITOR:-}" = "on" ]; then
-  echo "AMS_LAYOUT_EDITOR=on  (editor prompts enabled)"
-else
-  export AMS_LAYOUT_EDITOR="off"
-  echo "AMS_LAYOUT_EDITOR=off (editor skipped automatically)"
-fi
+# Editor modes (default off)
+[ "${AMS_DRAFT_EDITOR:-}"  = "on" ] || export AMS_DRAFT_EDITOR="off"
+[ "${AMS_LAYOUT_EDITOR:-}" = "on" ] || export AMS_LAYOUT_EDITOR="off"
+echo "AMS_DRAFT_EDITOR=${AMS_DRAFT_EDITOR}  AMS_LAYOUT_EDITOR=${AMS_LAYOUT_EDITOR}"
 ```
 
 **IMPORTANT:** All subsequent steps MUST use `$AMS_PYTHON` instead of `python3`.
 
-Parse user input: signal list, ring dimensions (width × height), placement order, inner pad insertions, voltage domain specifications.
+Parse user input: signal list, ring dimensions (width x height), placement order, inner pad insertions, voltage domain specs.
 
-### Step 1: Image Input Processing Rules (Before Step 2)
+**Draft Editor override:** If user explicitly requests the visual/draft editor ("I want to use the editor", etc.), set `AMS_DRAFT_EDITOR=on` for this run regardless of `.env`.
 
-Apply this step only when image input is provided.
+### Step 1: Image Input Processing (only if image provided)
 
-Rules:
-
-1. Load image-analysis instruction from `references/image_vision_instruction.md` first.
-2. Use the instruction to extract structured requirements from image(s):
-  - topology (Single/Double ring)
-  - counter-clockwise outer-ring signal order
-  - pad count description
-  - inner-pad insertion directives (if Double Ring)
-3. Treat extracted structure as Step 2 input. If user text and image conflict, prefer explicit user text constraints and keep unresolved conflicts explicit in the report.
-4. Keep extraction/output conventions unchanged:
-  - right side is read bottom-to-top
-  - top side is read right-to-left
-  - ignore `PFILLER*` devices
+1. Load instruction from `references/image_vision_instruction.md` first.
+2. Extract structured requirements from image(s):
+   - topology (Single/Double ring)
+   - counter-clockwise outer-ring signal order
+   - pad count description
+   - inner-pad insertion directives (if Double Ring)
+3. Treat extracted structure as Step 2 input. If user text and image conflict, prefer explicit user text; keep unresolved conflicts in the report.
+4. Conventions (unchanged): right side read bottom-to-top; top side read right-to-left; ignore `PFILLER*` devices.
 
 ### Step 2: Build Draft JSON (Structural Only)
 
-Build a draft JSON with only structural fields. No device/pin/corner inference in this step.
+Reference: `references/draft_builder_T28.md`
 
-Primary reference:
-
-- `references/draft_builder_T28.md`
-
-Process:
-
-1. Parse user structural inputs (signal list, width, height, placement_order, inner-pad insertions).
-  - If `placement_order`/dimensions/starting-side mapping cannot be uniquely resolved, invoke targeted questions from `references/wizard_T28.md`, then continue.
+1. Parse structural inputs (signal list, width, height, placement_order, inner-pad insertions). If `placement_order`/dimensions/starting-side cannot be uniquely resolved, invoke targeted questions from `references/wizard_T28.md`, then continue.
 2. Compute `ring_config`.
-3. Generate `instances` for `pad`/`inner_pad` with only:
-  - `name`
-  - `position`
-  - `type`
-4. Save draft to `{output_dir}/io_ring_intent_graph_draft.json`.
+3. Generate `instances` for `pad`/`inner_pad` with ONLY: `name`, `position`, `type`.
+4. Save to `{output_dir}/io_ring_intent_graph_draft.json`.
 
-Strict boundary:
+**Strict boundary:** Do NOT add `device`, `pin_connection`, `direction`, or any `corner` instance in Step 2.
 
-- Do NOT add `device`, `pin_connection`, `direction`, or any `corner` instance in Step 2.
+### Step 2b: Draft Editor (Optional)
+
+**Open when:** `AMS_DRAFT_EDITOR=on` OR user explicitly requested the editor.
+**Skip when:** neither condition is true → go straight to Step 3.
+
+Draft Editor lets users drag pads between sides, add/remove pads and corners, optionally set `device` (e.g. PVDD3AC) and `type` (pad/inner_pad), and see live ring validation (closure, corners, side parity).
+
+```bash
+$AMS_PYTHON $SCRIPTS_PATH/build_confirmed_config.py \
+  {output_dir}/io_ring_intent_graph_draft.json \
+  {output_dir}/io_ring_draft_confirmed.json \
+  --mode draft
+```
+
+Launches browser editor in draft mode → waits for "Confirm Draft" click → writes `io_ring_draft_confirmed.json` containing `"editor_mode": "draft"`, instances with `name`/`position`/`type` and optional `device`/`orientation`/`domain`/`direction`/`voltage_domain`. No fillers, no pin connections, no corners unless user added them.
+
+**Merge back before Step 3:** update `io_ring_intent_graph_draft.json` with structural changes (reordering, add/remove, type changes); carry through any user-set `device` fields as **hints** for Step 3; include any corners the user added.
 
 ### Step 3: Enrich Draft JSON to Final Intent Graph
 
-Read the Step 2 draft and enrich in a single pass.
+Reference: `references/enrichment_rules_T28.md`
 
-Mandatory inputs for Step 3:
+**Mandatory inputs:**
+- Step 2 draft JSON (primary structural source)
+- Step 2b draft editor output (if opened — contains device hints and structural changes)
+- Original user prompt (explicit intent: voltage-domain assignment, provider naming, digital pin-domain naming, direction overrides)
+- `wizard_constraints` (only if ambiguity triggered wizard in Step 2/3)
 
-- Step 2 draft JSON (primary source for structural fields)
-- Original user prompt (source for explicit intent not encoded structurally, such as voltage-domain assignment, provider naming, digital pin-domain naming, and direction overrides)
-- `wizard_constraints` object only if ambiguity was encountered and targeted questions were invoked during Step 2/3
+**Input precedence** (apply in order, never violate immutable draft structure):
+1. Explicit user prompt constraints
+2. User-specified `device` from Draft Editor (if Step 2b used)
+3. `wizard_constraints`
+4. Enrichment default inference
 
-Input precedence:
-
-- Keep structural fields from Step 2 draft immutable (`ring_config`, `name`, `position`, `type`) unless a hard inconsistency is reported.
-- Apply constraints in this order when they do not conflict with immutable draft structure:
-  1. Explicit user prompt constraints
-  2. `wizard_constraints`
-  3. Enrichment default inference
-
-Primary reference:
-
-- `references/enrichment_rules_T28.md`
-
-Process:
-
-1. Read `ring_config` and all draft instances (`name`, `position`, `type`) and user prompt constraints.
-  - If ambiguity is detected during enrichment, invoke targeted questions, merge returned constraints, then continue enrichment.
+**Process:**
+1. Read `ring_config` + draft instances + user prompt constraints. If user set `device` in Draft Editor, prefer it but may override if it violates a hard rule. If ambiguity is detected during enrichment, invoke targeted questions, merge constraints, continue.
 2. Add per-instance `device` (and `direction` for digital IO).
 3. Add per-instance `pin_connection`.
 4. Insert 4 corners with correct type/order.
-5. Run pre-save rule gates (must pass before saving), as defined in `references/enrichment_rules_T28.md`:
-  - Continuity gate
-  - Provider-count gate
-  - Position-identity gate
-  - Pin-family gate
-  - VSS-consistency gate
-6. Save final JSON to `{output_dir}/io_ring_intent_graph.json`.
+5. Pre-save rule gates (per `enrichment_rules_T28.md`): Continuity, Provider-count, Position-identity, Pin-family, VSS-consistency.
+6. Save to `{output_dir}/io_ring_intent_graph.json`.
 
-Handoff rule:
-
-- Treat draft structural fields as immutable unless a hard inconsistency must be reported.
+**Handoff rule:** Treat draft structural fields (`ring_config`, `name`, `position`, `type`) as immutable unless a hard inconsistency must be reported.
 
 ### Step 4: Reference-Guided Gate Check (Mandatory)
 
-Before Step 5 validation, explicitly verify Step 3 output against references:
+Verify Step 3 output against `references/enrichment_rules_T28.md`:
+- Priority, Domain Continuity, Position-Based Identity, Digital Provider Count
+- Analog Pins, Digital Pins, Universal VSS Rule, Direction Rules
+- Corner Rules
 
-- `references/enrichment_rules_T28.md` -> Priority, Domain Continuity, Position-Based Identity, Digital Provider Count
-- `references/enrichment_rules_T28.md` -> Analog Pins, Digital Pins, Universal VSS Rule, Direction Rules
-- `references/enrichment_rules_T28.md` -> Corner Rules
+Also verify: Step 3 output preserves explicit user-prompt constraints (voltage-domain ranges, provider names, digital domain names, direction overrides); every `wizard_constraints` override is reflected.
 
-Also verify that Step 3 output preserves explicit constraints from the original user prompt (especially voltage-domain ranges, provider names, digital domain names, and direction overrides).
-
-If `wizard_constraints` exists, also verify every override in `wizard_constraints` is reflected in the Step 3 output.
-
-If any gate fails, repair JSON first and repeat Step 4. Do not proceed to Step 5.
-
+If any gate fails → repair JSON, repeat Step 4. Do not proceed to Step 5.
 
 ### Step 5: Validate JSON
 
@@ -208,75 +176,40 @@ $AMS_PYTHON $SCRIPTS_PATH/validate_intent.py {output_dir}/io_ring_intent_graph.j
 ```
 
 - Exit 0 → proceed
-- Exit 1 → enter repair loop:
-  1. Read validator error messages carefully.
-  2. Go back to references and query the matching rules (`references/draft_builder_T28.md` or `references/enrichment_rules_T28.md`).
-  3. Apply targeted JSON fixes only for reported issues.
-  4. Run validator again.
-  5. Repeat until Exit 0 or a blocking inconsistency is found (then stop and report clearly).
+- Exit 1 → repair loop: read error → query matching rule (`draft_builder_T28.md` / `enrichment_rules_T28.md`) → apply targeted fix → re-validate → repeat until Exit 0 or hard blocker (stop and report clearly).
 - Exit 2 → file not found
 
-Validation repair constraints:
+**Repair constraints:** do NOT regenerate whole JSON unless fundamentally broken; preserve Step 2 immutable fields (`ring_config`, `name`, `position`, `type`); every fix must trace to a validator error + reference rule; if continuity/provider-count gates fail, fix classification first, then device/pin labels.
 
-- Do NOT regenerate the whole JSON unless structure is fundamentally broken.
-- Preserve Step 2 immutable fields (`ring_config`, `name`, `position`, `type`) during repair.
-- Every fix must be traceable to an explicit validator error and a reference rule.
-- If continuity/provider-count gates fail during repair, fix classification first, then device/pin labels.
+### Step 6: Build Confirmed Config (Confirmation Editor)
 
-### Step 6: Build Confirmed Config
+Check `AMS_LAYOUT_EDITOR`:
+- `on` → Ask user via `AskUserQuestion`: *"The layout is ready for confirmation. Would you like to open the visual Layout Editor to review and adjust pad placement, fillers, and pin connections before proceeding?"*
+  - **Open Layout Editor** — browser editor in confirmation mode (fillers, pins, corners); click "Confirm & Continue" when done.
+  - **Skip Editor** — build confirmed config directly (recommended for batch runs).
+- `off` → skip automatically, no question.
 
-**Check `AMS_LAYOUT_EDITOR` env var to decide whether to prompt the user.**
-
-- If `AMS_LAYOUT_EDITOR=on`: Ask the user via `AskUserQuestion` whether to open the Layout Editor.
-- If `AMS_LAYOUT_EDITOR=off` (default): Skip the editor automatically — no question asked.
-
-#### If AMS_LAYOUT_EDITOR=on — Ask the user:
-
-Ask prompt:
-> The layout is ready for confirmation. Would you like to open the visual Layout Editor to review and adjust pad placement before proceeding?
-
-Options presented to user:
-
-- **Open Layout Editor** — Launches a browser-based editor where you can drag pads, edit properties, and visually confirm the ring layout. Click "Confirm & Continue" when done.
-- **Skip Editor** — Build the confirmed config directly without manual review (recommended for automated/batch runs).
-
-**If user chooses "Open Layout Editor":**
-
+**Open editor:**
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/build_confirmed_config.py \
   {output_dir}/io_ring_intent_graph.json \
-  {output_dir}/io_ring_confirmed.json \
-  T28
+  {output_dir}/io_ring_confirmed.json
 ```
+This inserts fillers, generates intermediate JSON, opens browser editor, waits for confirm, merges changes back.
 
-This will:
-1. Insert fillers and generate intermediate JSON
-2. **Open a browser-based Layout Editor** for visual review and editing
-3. Wait for user to confirm (click "Confirm & Continue" button)
-4. Merge editor changes back into the confirmed config
-
-**If user chooses "Skip Editor" (or AMS_LAYOUT_EDITOR=off):**
-
+**Skip editor:**
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/build_confirmed_config.py \
   {output_dir}/io_ring_intent_graph.json \
   {output_dir}/io_ring_confirmed.json \
-  T28 \
   --skip-editor
 ```
 
 ### Step 7: Generate SKILL Scripts
 
 ```bash
-$AMS_PYTHON $SCRIPTS_PATH/generate_schematic.py \
-  {output_dir}/io_ring_confirmed.json \
-  {output_dir}/io_ring_schematic.il \
-  T28
-
-$AMS_PYTHON $SCRIPTS_PATH/generate_layout.py \
-  {output_dir}/io_ring_confirmed.json \
-  {output_dir}/io_ring_layout.il \
-  T28
+$AMS_PYTHON $SCRIPTS_PATH/generate_schematic.py {output_dir}/io_ring_confirmed.json {output_dir}/io_ring_schematic.il T28
+$AMS_PYTHON $SCRIPTS_PATH/generate_layout.py    {output_dir}/io_ring_confirmed.json {output_dir}/io_ring_layout.il    T28
 ```
 
 ### Step 8: Check Virtuoso Connection
@@ -284,24 +217,14 @@ $AMS_PYTHON $SCRIPTS_PATH/generate_layout.py \
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/check_virtuoso_connection.py
 ```
-
 - Exit 0 → proceed
-- Exit 1 → **STOP**. Report all generated files so far and instruct user to start Virtuoso. Do NOT proceed.
+- Exit 1 → **STOP**. Report generated files so far; instruct user to start Virtuoso. Do NOT proceed.
 
 ### Step 9: Execute SKILL Scripts in Virtuoso
 
 ```bash
-$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py \
-  {output_dir}/io_ring_schematic.il \
-  {lib} {cell} \
-  {output_dir}/schematic_screenshot.png \
-  schematic
-
-$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py \
-  {output_dir}/io_ring_layout.il \
-  {lib} {cell} \
-  {output_dir}/layout_screenshot.png \
-  layout
+$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_schematic.il {lib} {cell} {output_dir}/schematic_screenshot.png schematic
+$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_layout.il    {lib} {cell} {output_dir}/layout_screenshot.png    layout
 ```
 
 ### Step 10: Run DRC
@@ -309,55 +232,49 @@ $AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py \
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/run_drc.py {lib} {cell} layout T28
 ```
-
-- Exit 0 -> proceed to Step 11
-- Exit 1 -> enter DRC repair loop:
-  1. Read DRC report and extract failing rule/check locations.
-  2. Map each error to reference rules (continuity/classification, device mapping, pin configuration, corner typing/order).
-  3. Fix the source intent JSON first (`io_ring_intent_graph.json`), then re-run Step 6-10 to regenerate and recheck.
-  4. Repeat until DRC passes, but allow at most 2 repair attempts; if still failing, stop and report the unresolved DRC blockers.
+- Exit 0 → Step 11
+- Exit 1 → DRC repair loop: read report → map errors to reference rules (continuity/classification, device mapping, pin config, corner typing/order) → fix intent JSON → re-run Steps 6-10. Max 2 attempts; if still failing, stop and report blockers.
 
 ### Step 11: Run LVS
 
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/run_lvs.py {lib} {cell} layout T28
 ```
-
-- Exit 0 -> proceed to Step 12
-- Exit 1 -> enter LVS repair loop:
-  1. Read LVS report and identify mismatch class (net mismatch, missing device, pin mismatch, shorts/opens).
-  2. Query matching reference rules and locate the root cause in intent JSON (check continuity/provider-count gates before pin-level edits).
-  3. Fix intent JSON by returning to Step 3 checks/fixes first, then re-run Step 3-12 (enrich, gate-check, validate, build, generate, execute, DRC, LVS, final report).
-  4. Repeat until LVS passes, but allow at most 2 repair attempts; if still failing, stop and report the unresolved LVS blockers.
+- Exit 0 → Step 12
+- Exit 1 → LVS repair loop: identify mismatch class (net/missing device/pin/shorts/opens) → query reference rules → fix intent JSON (check continuity/provider-count gates before pin-level edits) → re-run Steps 3-12. Max 2 attempts; if still failing, stop and report blockers.
 
 ### Step 12: Final Report
 
-Provide structured summary:
+Structured summary:
 - Generated files (JSON, SKILL scripts, screenshots, reports) with paths
 - Validation results (pass/fail)
 - DRC/LVS results (if applicable)
 - Ring statistics (total pads, analog/digital counts, voltage domains)
 - Image analysis results (if layout analysis was performed)
+- Draft Editor usage (if Step 2b was invoked)
 
 ## Task Completion Checklist
 
-### Core Requirements
+**Core Requirements**
 - [ ] All signals preserved (including duplicates), order strictly followed
-- [ ] Step 2 draft JSON generated with only ring_config + name/position/type
-- [ ] Step 3 enrichment completed (device/pin_connection/direction/corners)
-- [ ] Step 3 reads draft JSON fields (name/position/type + ring_config), not name only
+- [ ] Step 2 draft JSON: only `ring_config` + name/position/type
+- [ ] Step 2b: Draft Editor opened if `AMS_DRAFT_EDITOR=on` or user requested; skipped otherwise
+- [ ] Step 2b: Draft editor output merged back into draft JSON before Step 3
+- [ ] Step 3 enrichment: device/pin_connection/direction/corners
+- [ ] Step 3 reads draft fields (name/position/type + ring_config), not name only
+- [ ] Step 3 respects user-specified device hints from Draft Editor
 
-### Workflow
-- [ ] Step 0: Timestamp directory created
-- [ ] Wizard question callback: Only invoked during Step 2/3 when ambiguity is detected
-- [ ] Wizard question callback: If invoked — run targeted questions per `references/wizard_T28.md` and assemble `wizard_constraints`
-- [ ] Step 2: Draft intent graph generated and saved
-- [ ] Step 3: Final intent graph generated from draft and saved
-- [ ] Step 4: Reference-guided gate check passed
-- [ ] Step 5: Validation passed (exit 0)
-- [ ] Step 6: Confirmed config built (AMS_LAYOUT_EDITOR=on → ask user; off → skip automatically)
+**Workflow**
+- [ ] Step 0: Timestamp dir created; `AMS_DRAFT_EDITOR` resolved from .env/user request
+- [ ] Wizard callback: invoked ONLY during Step 2/3 when ambiguity detected; runs targeted questions per `references/wizard_T28.md` → `wizard_constraints`
+- [ ] Step 2: Draft intent graph generated/saved
+- [ ] Step 2b: Draft Editor opened/skipped per setting
+- [ ] Step 3: Final intent graph generated from draft/saved
+- [ ] Step 4: Gate check passed
+- [ ] Step 5: Validation Exit 0
+- [ ] Step 6: Confirmed config built (AMS_LAYOUT_EDITOR=on → ask user; off → skip)
 - [ ] Step 7: SKILL scripts generated
-- [ ] Step 8: Virtuoso connection verified before execution
+- [ ] Step 8: Virtuoso connection verified
 - [ ] Step 9: Scripts executed, screenshots saved
 - [ ] Step 10: DRC completed
 - [ ] Step 11: LVS completed
@@ -365,7 +282,7 @@ Provide structured summary:
 
 ## .il Script Debugging
 
-When a generated `.il` script fails during Step 9 execution, read `references/skill_language_reference.md` for SKILL language syntax, Virtuoso API, and common runtime errors before attempting fixes. Typical issues: nil cellview, wrong layer-purpose pairs, unbound variables, mismatched parentheses in prefix notation.
+When a generated `.il` fails in Step 9, read `references/skill_language_reference.md` for SKILL syntax, Virtuoso API, and common runtime errors before fixing. Typical issues: nil cellview, wrong layer-purpose pairs, unbound variables, mismatched parentheses in prefix notation.
 
 ## Troubleshooting
 
@@ -373,26 +290,27 @@ When a generated `.il` script fails during Step 9 execution, read `references/sk
 |---------|---------|
 | Scripts not found | Use Option B (absolute path); verify with `ls $SCRIPTS_PATH/validate_intent.py` |
 | Virtuoso not connected | Start Virtuoso; do NOT retry SKILL execution |
-| .il execution error | Read `references/skill_language_reference.md` for SKILL syntax and common runtime errors; fix the generated `.il` file, then re-run Step 9 |
+| .il execution error | Read `references/skill_language_reference.md` for SKILL syntax/runtime errors; fix `.il` file, re-run Step 9 |
 | Domain continuity fails | Re-classify signals using ring-wrap continuity first, then re-check digital provider count = 4 unique names |
-| Validation failure | Enter Step 5 repair loop: parse error -> query matching rule in references -> apply targeted JSON fix -> re-validate; common issues: missing pins, wrong suffixes, duplicate indices |
-| DRC failure | Enter Step 10 repair loop: parse DRC report -> query matching reference rules -> fix intent JSON -> regenerate and rerun DRC |
-| LVS failure | Enter Step 11 repair loop: parse LVS mismatch -> return to Step 3 to check/fix intent JSON -> rerun Step 3-12 |
+| Validation failure | Enter Step 5 repair loop: parse error → query matching rule → apply targeted JSON fix → re-validate; common: missing pins, wrong suffixes, duplicate indices |
+| DRC failure | Enter Step 10 repair loop: parse DRC report → query reference rules → fix intent JSON → regenerate and rerun DRC |
+| LVS failure | Enter Step 11 repair loop: parse LVS mismatch → return to Step 3 to check/fix intent JSON → rerun Steps 3-12 |
+| Draft Editor not opening | Check `AMS_DRAFT_EDITOR` in `.env` or verify user requested it; ensure port is not blocked |
+| Draft Editor shows pin connections | Should not happen in draft mode — verify `window.__EDITOR_MODE__` is set to `draft` in server response |
 
-Repair loop cap (applies to Step 10/11):
-
-- Maximum 2 repair attempts per loop. If still failing after attempt 2, stop the loop and report unresolved blockers.
+**Repair loop cap (Steps 10/11):** Max 2 attempts. If still failing, stop and report unresolved blockers.
 
 ## Directory Structure
 
 ```
 io-ring-orchestrator-T28/
 ├── SKILL.md                          # This file
+├── .env                              # Skill configuration (edit per deployment)
 ├── requirements.txt                   # Python requirements (minimal)
 │
-├── scripts/                          # CLI entry point scripts (each self-contained)
+├── scripts/                          # CLI entry points (each self-contained)
 │   ├── validate_intent.py
-│   ├── build_confirmed_config.py
+│   ├── build_confirmed_config.py       # Supports --mode draft|confirmation
 │   ├── generate_schematic.py
 │   ├── generate_layout.py
 │   ├── check_virtuoso_connection.py
@@ -402,20 +320,20 @@ io-ring-orchestrator-T28/
 │   ├── run_pex.py
 │   └── README.md
 │
-├── references/                       # Documentation & templates
+├── references/                       # Docs & templates
 │   ├── draft_builder_T28.md
 │   ├── enrichment_rules_T28.md
 │   ├── T28_Technology.md
-│   ├── skill_language_reference.md    # SKILL language syntax & Virtuoso API reference
+│   ├── skill_language_reference.md    # SKILL syntax & Virtuoso API
 │   ├── intent_graph_minimal.json
 │   ├── intent_graph_template.json
 │   └── image_vision_instruction.md
 │
-└── assets/                          # All bundled code (self-contained)
-    ├── core/                         # Core logic
-    │   ├── layout/                    # Layout generation modules
-    │   │   ├── layout_generator.py      # T28 layout generator
-    │   │   ├── confirmed_config_builder.py
+└── assets/                           # Bundled code (self-contained)
+    ├── core/
+    │   ├── layout/                     # Layout generation modules
+    │   │   ├── layout_generator.py       # T28 layout generator
+    │   │   ├── confirmed_config_builder.py # build_confirmed_config + build_draft_editor_session
     │   │   ├── skill_generator.py
     │   │   ├── auto_filler.py
     │   │   ├── layout_visualizer.py
@@ -428,37 +346,28 @@ io-ring-orchestrator-T28/
     │   │   ├── layout_validator.py
     │   │   ├── voltage_domain.py
     │   │   ├── editor_confirm_merge.py
-    │   │   └── editor_utils.py
+    │   │   └── editor_utils.py           # export_to_editor_json + draft_to_editor_json
     │   ├── schematic/
     │   │   ├── schematic_generator_T28.py
-    │   │   └── devices/
-    │   │       └── IO_device_info_T28_parser.py
-    │   └── intent_graph/
-    │       └── json_validator.py
+    │   │   └── devices/IO_device_info_T28_parser.py
+    │   └── intent_graph/json_validator.py
     │
-    ├── utils/                        # Utility modules
-    │   ├── bridge_utils.py           # Virtuoso bridge
-    │   ├── logging_utils.py
-    │   ├── visualization.py
-    │   └── banner.py
+    ├── layout_editor/                # Browser-based editor
+    │   ├── layout_editor.html          # Single-file React editor (draft + confirmation modes)
+    │   ├── layout_editor_launcher.py   # HTTP server + browser launcher (--mode draft|confirmation)
+    │   └── vendor/                     # React/ReactDOM (served locally)
     │
-    ├── skill_code/                   # Virtuoso SKILL files (.il)
+    ├── utils/                        # bridge_utils.py (Virtuoso bridge), logging_utils.py, visualization.py, banner.py
+    │
+    ├── skill_code/                   # Virtuoso .il files
     │   ├── screenshot.il
     │   ├── get_cellview_info.il
     │   ├── helper_based_device_T28.il
     │   ├── create_io_ring_lib_full.il
     │   └── create_schematic_cv.il
     │
-    ├── device_info/                  # Device templates
-    │   ├── IO_device_info_T28.json
-    │   └── IO_device_info_T28_parser.py
+    ├── device_info/                  # IO_device_info_T28.json + IO_device_info_T28_parser.py
     │
-    └── external_scripts/             # External executables
-        └── calibre/
-            ├── T28/
-            ├── run_drc.csh
-            ├── run_lvs.csh
-            └── run_pex.csh
-# Virtuoso TCP bridge + SSH file transfer are provided by virtuoso-bridge-lite
-# (installed separately; see README.md Prerequisites).
+    └── external_scripts/calibre/     # run_drc.csh, run_lvs.csh, run_pex.csh, T28/
+# Virtuoso TCP bridge + SSH transfer: virtuoso-bridge-lite (installed separately; see README.md Prerequisites).
 ```

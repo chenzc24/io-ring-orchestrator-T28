@@ -10,7 +10,7 @@ from copy import deepcopy
 
 
 def parse_relative_position(pos: Any):
-    """Parse relative position string like top_0/right_1/top_left."""
+    """Parse relative position string like top_0/right_1/top_left/left_3_4."""
     if not isinstance(pos, str):
         return None, None, None
 
@@ -20,6 +20,12 @@ def parse_relative_position(pos: Any):
     parts = pos.split("_")
     if len(parts) == 2 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit():
         return parts[0], int(parts[1]), None
+
+    # Inner pad format: side_index1_index2 (e.g. left_3_4 = between left_3 and left_4)
+    if len(parts) == 3 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit() and parts[2].isdigit():
+        idx1, idx2 = int(parts[1]), int(parts[2])
+        # Use fractional index to sort between the two outer pads
+        return parts[0], idx1 + 0.5, None
 
     return None, None, None
 
@@ -41,12 +47,12 @@ def export_to_editor_json(
     
     chip_width = ring_config.get("chip_width", 0)
     chip_height = ring_config.get("chip_height", 0)
-    process_node = ring_config.get("process_node", "T180")
-    
-    # Dimensions for logic calculation (T180 default fallback)
-    pad_h = ring_config.get("pad_height", 120)
-    corner_s = ring_config.get("corner_size", 130)
-    pad_w = ring_config.get("pad_width", 80)
+    process_node = ring_config.get("process_node", "T28")
+
+    # Dimensions for logic calculation (T28 default fallback)
+    pad_h = ring_config.get("pad_height", 110)
+    corner_s = ring_config.get("corner_size", 110)
+    pad_w = ring_config.get("pad_width", 20)
     
     # 1. Structure the Graph
     # Preserve ring_config shape instead of trimming to a subset.
@@ -167,5 +173,149 @@ def export_to_editor_json(
         
     with open(out_file, 'w', encoding='utf-8') as f:
         json.dump(intent_graph, f, indent=2)
-        
+
+    return str(out_file)
+
+
+def draft_to_editor_json(
+    draft_instances: List[Dict],
+    ring_config: Dict,
+    visual_colors: Dict,
+    output_path: str,
+) -> str:
+    """Export minimal draft instances to IO Editor compatible JSON format.
+
+    Unlike export_to_editor_json(), this function does NOT require fillers,
+    corners, pin connections, or even position strings. It tolerates instances
+    with only `name` and `side` (and optionally `device` and `type`).
+
+    Args:
+        draft_instances: List of draft instance dicts (minimal fields).
+        ring_config: Configuration dict (process_node, dimensions, etc.).
+        visual_colors: Dictionary of device colors from Visualizer.
+        output_path: Path to save the JSON file.
+
+    Returns:
+        Path to the written JSON file.
+    """
+    from copy import deepcopy
+
+    process_node = ring_config.get("process_node", "T28")
+    pad_h = ring_config.get("pad_height", 110)
+    corner_s = ring_config.get("corner_size", 110)
+    pad_w = ring_config.get("pad_width", 20)
+
+    ring_config_preserved = deepcopy(ring_config) if isinstance(ring_config, dict) else {}
+    if not ring_config_preserved:
+        ring_config_preserved = {
+            "placement_order": "counterclockwise",
+            "process_node": process_node,
+        }
+    ring_config_preserved.setdefault("process_node", process_node)
+    ring_config_preserved.setdefault("placement_order", "counterclockwise")
+    # Strip auto-derived chip dimensions — these are runtime-only, not draft data
+    for _key in ("chip_width", "chip_height", "top_count", "right_count", "bottom_count", "left_count",
+                 "num_pads_top", "num_pads_right", "num_pads_bottom", "num_pads_left"):
+        ring_config_preserved.pop(_key, None)
+
+    intent_graph = {
+        "ring_config": ring_config_preserved,
+        "visual_metadata": {
+            "colors": visual_colors,
+            "dimensions": {
+                "pad_width": pad_w,
+                "pad_height": pad_h,
+                "corner_size": corner_s,
+                "filler_10_width": 10,
+            },
+        },
+        "instances": [],
+    }
+
+    # Track auto-assigned order per side
+    side_counters = {"top": 0, "right": 0, "bottom": 0, "left": 0}
+
+    for idx, inst in enumerate(draft_instances):
+        # Resolve position
+        position = inst.get("position")
+        side = inst.get("side")
+        order = inst.get("order")
+
+        if isinstance(position, str) and position:
+            # Parse position string
+            if position in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+                resolved_side = "corner"
+                resolved_order = 1
+            else:
+                parts = position.split("_")
+                if len(parts) == 2 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit():
+                    resolved_side = parts[0]
+                    resolved_order = int(parts[1]) + 1
+                elif len(parts) == 3 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit() and parts[2].isdigit():
+                    # Inner pad format: side_index1_index2 (e.g., left_3_4 = between left_3 and left_4)
+                    resolved_side = parts[0]
+                    # Place between the two outer pads; fractional order
+                    resolved_order = int(parts[1]) + 1.5
+                else:
+                    resolved_side = side or "top"
+                    resolved_order = order or (side_counters.get(resolved_side, 0) + 1)
+        elif side and side in side_counters:
+            resolved_side = side
+            resolved_order = order if order else (side_counters[side] + 1)
+        elif side == "corner":
+            resolved_side = "corner"
+            resolved_order = 1
+        else:
+            # Fallback: assign to top
+            resolved_side = "top"
+            resolved_order = side_counters["top"] + 1
+
+        # Update counter — only count outer pads, not inner_pads
+        instance_type = inst.get("type", "pad") or "pad"
+        if resolved_side in side_counters and instance_type != "inner_pad":
+            side_counters[resolved_side] = max(side_counters[resolved_side], resolved_order)
+
+        # Build position string
+        if resolved_side == "corner":
+            # Try to determine which corner
+            location = inst.get("location") or inst.get("meta", {}).get("location")
+            if location in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+                position_str = location
+            else:
+                position_str = "top_left"  # placeholder
+        elif instance_type == "inner_pad" and isinstance(position, str):
+            # Preserve inner_pad position format (e.g., left_3_4 = between left_3 and left_4)
+            parts = position.split("_")
+            if len(parts) == 3 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit() and parts[2].isdigit():
+                position_str = position
+            else:
+                position_str = f"{resolved_side}_{resolved_order - 1}"
+        else:
+            position_str = f"{resolved_side}_{resolved_order - 1}"
+
+        device = inst.get("device", "")
+
+        persisted_instance = {
+            "id": inst.get("id", f"inst_{idx}"),
+            "name": inst.get("name", f"{instance_type}_{idx}"),
+            "device": device,
+            "type": instance_type,
+            "position": position_str,
+        }
+
+        # Carry through optional fields
+        for field in ("orientation", "domain", "direction", "voltage_domain"):
+            if field in inst:
+                persisted_instance[field] = inst[field]
+
+        intent_graph["instances"].append(persisted_instance)
+
+    # Write to file
+    out_file = Path(output_path)
+    if not out_file.parent.exists():
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(out_file, 'w', encoding='utf-8') as f:
+        json.dump(intent_graph, f, indent=2)
+
     return str(out_file)
