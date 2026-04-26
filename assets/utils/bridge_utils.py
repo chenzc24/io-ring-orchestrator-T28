@@ -326,6 +326,12 @@ def load_skill_file(file_path: str, timeout: int = 60) -> bool:
         resp = getattr(load_result, "response", "") or str(load_result)
         if resp.strip().lower() == "t":
             return True
+    except RuntimeError:
+        # Local mode: SSH path preparation is unavailable (_ssh_runner is None).
+        # Virtuoso is on the same machine so load() can access the path directly.
+        abs_path = str(Path(file_path).resolve())
+        result = rb_exec(f'load("{abs_path}")', timeout=timeout)
+        return (result or "").strip().lower() == "t"
     except Exception:
         pass
 
@@ -818,7 +824,13 @@ def execute_csh_script(script_path: str, *args, timeout: int = 600) -> str:
     remote_base = _get_calibre_remote_base()
 
     # ── Upload all calibre scripts as a single tarball ─────────────────────────
-    upload_err = _upload_calibre_tree(ssh, calibre_dir, remote_base, timeout=120)
+    try:
+        upload_err = _upload_calibre_tree(ssh, calibre_dir, remote_base, timeout=120)
+    except RuntimeError as e:
+        # Local mode: ssh._ssh_runner is None so upload_file() raises RuntimeError.
+        # Calibre is accessible on the same machine — run the script directly.
+        print(f"[execute_csh_script] SSH upload unavailable in local mode ({e}), falling back to local csh")
+        return _run_local_csh(script_path, args, timeout)
     if upload_err:
         local = _run_local_csh(script_path, args, timeout)
         if not str(local).startswith("Local csh execution failed"):

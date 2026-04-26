@@ -14,11 +14,11 @@
 # These scripts add Calibre/strmout to PATH and set license variables.
 # On most EDA servers they live under /home/cshrc/ or similar.
 # If your site uses different paths, set them in site_local.csh.
-if ( -f /home/cshrc/.cshrc.cadence.IC618SP201 ) then
-    source /home/cshrc/.cshrc.cadence.IC618SP201
+if ( -f /home/cshrc/.cshrc.cadence.sui ) then
+    source /home/cshrc/.cshrc.cadence.sui
 endif
-if ( -f /home/cshrc/.cshrc.mentor ) then
-    source /home/cshrc/.cshrc.mentor
+if ( -f /home/cshrc/.cshrc.mentor25.sui ) then
+    source /home/cshrc/.cshrc.mentor25.sui
 endif
 
 
