@@ -98,11 +98,11 @@ def main():
 
     # Check input file exists
     if not Path(config_path).exists():
-        print(f"❌ Error: Input file not found: {config_path}")
+        print(f"[ERROR] Error: Input file not found: {config_path}")
         sys.exit(2)
 
     try:
-        print(f"🔧 Generating schematic SKILL code...")
+        print(f"[>>] Generating schematic SKILL code...")
         print(f"   Input:  {config_path}")
         print(f"   Output: {output_path}")
 
@@ -152,14 +152,14 @@ def main():
         device_count = len(device_instances)
         device_types = sorted({item["device"] for item in device_instances if item.get("device")})
 
-        lines = [f"✅ Successfully generated schematic file: {output_path_obj}", "📊 Statistics:", f"  - Device instance count: {device_count}"]
+        lines = [f"[OK] Successfully generated schematic file: {output_path_obj}", "[STATS] Statistics:", f"  - Device instance count: {device_count}"]
         if device_types:
             lines.append(f"  - Device types used: {', '.join(device_types)}")
         print("\n".join(lines))
         sys.exit(0)
 
     except Exception as e:
-        print(f"❌ Error during schematic generation: {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during schematic generation: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

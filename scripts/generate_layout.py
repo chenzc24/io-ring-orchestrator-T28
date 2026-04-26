@@ -96,11 +96,11 @@ def main():
 
     # Check input file exists
     if not Path(config_path).exists():
-        print(f"❌ Error: Input file not found: {config_path}")
+        print(f"[ERROR] Error: Input file not found: {config_path}")
         sys.exit(2)
 
     try:
-        print(f"🔧 Generating layout SKILL code...")
+        print(f"[>>] Generating layout SKILL code...")
         print(f"   Input:  {config_path}")
         print(f"   Output: {output_path}")
 
@@ -133,16 +133,16 @@ def main():
             vis_generated = False
 
         if vis_generated and Path(vis_path).exists():
-            print(f"\n✅ Successfully generated layout file: {output_path_obj}")
-            print(f"📊 Layout visualization generated: {vis_path}")
-            print("💡 Tip: Review visualization image to verify layout arrangement.")
+            print(f"\n[OK] Successfully generated layout file: {output_path_obj}")
+            print(f"[STATS] Layout visualization generated: {vis_path}")
+            print("[TIP] Tip: Review visualization image to verify layout arrangement.")
         else:
-            print(f"\n✅ Successfully generated layout file: {output_path_obj}")
+            print(f"\n[OK] Successfully generated layout file: {output_path_obj}")
 
         sys.exit(0)
 
     except Exception as e:
-        print(f"❌ Error during layout generation: {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during layout generation: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

@@ -74,7 +74,7 @@ def main():
 
     # Check input file exists
     if not Path(intent_graph_path).exists():
-        print(f"❌ Error: Input file not found")
+        print(f"[ERROR] Error: Input file not found")
         print(f"   File: {Path(intent_graph_path).resolve()}")
         print(f"   Please check:")
         print(f"     1. File exists at specified path")
@@ -85,7 +85,7 @@ def main():
     # Validate output path parent directory exists
     output_parent = Path(confirmed_output_path).parent
     if not output_parent.exists():
-        print(f"⚠️  Warning: Output directory does not exist: {output_parent}")
+        print(f"[WARN]  Warning: Output directory does not exist: {output_parent}")
         print(f"   Will create directory automatically")
         output_parent.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +99,7 @@ def main():
         print(f"Skip editor: {skip_editor_confirmation}")
         print("")
 
-        print("🔧 Building confirmed config...")
+        print("[>>] Building confirmed config...")
         print(f"   Input: {intent_graph_path}")
         print(f"   Output: {confirmed_output_path}")
         print(f"   Process: T28")
@@ -125,21 +125,21 @@ def main():
         if Path(confirmed_path).exists():
             print("")
             print("=== Success ===")
-            print(f"✅ Confirmed IO config generated successfully: {Path(confirmed_path).resolve()}")
+            print(f"[OK] Confirmed IO config generated successfully: {Path(confirmed_path).resolve()}")
             file_size = Path(confirmed_path).stat().st_size
             print(f"   File size: {file_size} bytes")
-            print("💡 This file is ready for downstream layout/schematic generation.")
+            print("[TIP] This file is ready for downstream layout/schematic generation.")
             sys.exit(0)
         else:
             print("")
-            print("⚠️  Warning: Output file may not have been created")
+            print("[WARN]  Warning: Output file may not have been created")
             print(f"   Expected: {Path(confirmed_path).resolve()}")
             print(f"   Check the output above for any error messages")
             sys.exit(0)
 
     except FileNotFoundError as e:
         print("")
-        print(f"❌ Error: File not found - {e}")
+        print(f"[ERROR] Error: File not found - {e}")
         print(f"   Message: {str(e)}")
         print(f"   This may indicate:")
         print(f"     1. Input file does not exist")
@@ -153,7 +153,7 @@ def main():
 
     except RuntimeError as e:
         print("")
-        print(f"❌ Error: Runtime error - {e}")
+        print(f"[ERROR] Error: Runtime error - {e}")
         print(f"   Message: {str(e)}")
         print(f"   This may indicate:")
         print(f"     1. Configuration validation failure")
@@ -168,7 +168,7 @@ def main():
 
     except Exception as e:
         print("")
-        print(f"❌ Error during config build - {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during config build - {type(e).__name__}: {e}")
         print(f"   Message: {str(e)}")
         print(f"   Debug information:")
         print(f"     Working directory: {os.getcwd()}")

@@ -1623,19 +1623,21 @@ function RingCanvasComponent() {
       // Chip background (inner area)
       h('rect', {
         x: innerX, y: innerY, width: innerW, height: innerH,
-        fill: '#f9fafb', stroke: '#d1d5db', strokeWidth: 1
+        fill: '#f9fafb', stroke: '#d1d5db', strokeWidth: 1,
+        pointerEvents: 'none'
       }),
       // Chip label
       h('text', {
         x: innerX + innerW / 2, y: innerY + innerH / 2,
         textAnchor: 'middle', dominantBaseline: 'middle',
         fontSize: Math.min(innerW, innerH) * 0.08,
-        fill: '#9ca3af', style: { userSelect: 'none' }
+        fill: '#9ca3af', style: { userSelect: 'none', pointerEvents: 'none' }
       }, `${processNode} IO Ring`),
       // Ring outline
       h('rect', {
         x: outerX, y: outerY, width: outerW, height: outerH,
-        fill: 'none', stroke: '#6b7280', strokeWidth: 1
+        fill: 'none', stroke: '#6b7280', strokeWidth: 1,
+        pointerEvents: 'none'
       }),
       // Instance rectangles
       ...instRects.map((r, i) => renderInstRect(r, i)),

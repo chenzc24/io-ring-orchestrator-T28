@@ -48,7 +48,7 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
     except ImportError as e:
         report.append(f"Error: {type(e).__name__}: {e}")
         report.append("")
-        report.append("❌ Virtuoso Connection: FAILED")
+        report.append("[ERROR] Virtuoso Connection: FAILED")
         report.append("• virtuoso-bridge is not installed")
         report.append("• Install with: pip install -e /path/to/virtuoso-bridge-lite")
         report.append("  (into the T28 skill's .venv — see README Step 2)")
@@ -60,7 +60,7 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
     except Exception as e:
         report.append(f"Error: {type(e).__name__}: {e}")
         report.append("")
-        report.append("❌ Virtuoso Connection: FAILED")
+        report.append("[ERROR] Virtuoso Connection: FAILED")
         report.append("• Could not create VirtuosoClient")
         report.append("• Check ~/.virtuoso-bridge/.env (create with: virtuoso-bridge init)")
         report.append("• Start the tunnel with: virtuoso-bridge start")
@@ -72,7 +72,7 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
     except Exception as e:
         report.append(f"Error: {type(e).__name__}: {e}")
         report.append("")
-        report.append("❌ Virtuoso Connection: FAILED")
+        report.append("[ERROR] Virtuoso Connection: FAILED")
         report.append("• Could not reach the Virtuoso daemon")
         report.append("• Run: virtuoso-bridge status")
         report.append("• Confirm the daemon SKILL is loaded in Virtuoso CIW")
@@ -83,11 +83,11 @@ def check_via_virtuoso_bridge() -> tuple[bool, list]:
     report.append("")
 
     if result.ok and (result.output or "").strip() == "2":
-        report.append("✅ Virtuoso Connection: OK")
+        report.append("[OK] Virtuoso Connection: OK")
         report.append("• Bridge responded with correct result (2)")
         return True, report
 
-    report.append("⚠️  Virtuoso Connection: UNCERTAIN")
+    report.append("[WARN]  Virtuoso Connection: UNCERTAIN")
     report.append(f"• Bridge responded: {result.output!r}")
     report.append("• Expected: '2'")
     report.append("• Connection may be working but response format unexpected")
@@ -163,7 +163,7 @@ def print_troubleshooting(success: bool) -> None:
     print("")
 
     if success:
-        print("✅ Virtuoso connection is working!")
+        print("[OK] Virtuoso connection is working!")
         print("If tools still misbehave:")
         print("  1. Check tool timeout settings")
         print("  2. Verify library/cell/view names are correct")
@@ -187,7 +187,7 @@ def print_troubleshooting(success: bool) -> None:
 
 def main():
     """Main entry point with full diagnostics."""
-    print("🔧 Virtuoso Connection Check - Enhanced Diagnostics")
+    print("[>>] Virtuoso Connection Check - Enhanced Diagnostics")
     print("=" * 60)
     print()
 

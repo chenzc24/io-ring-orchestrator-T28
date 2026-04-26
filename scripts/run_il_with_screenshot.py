@@ -61,7 +61,7 @@ def _verify_cellview(lib: str, cell: str, view: str) -> bool:
     actual_view = rb_exec('cv~>viewName', timeout=10).strip().strip('"')
     if actual_lib == lib and actual_cell == cell and actual_view == view:
         return True
-    print(f"   ❌ CellView mismatch! Expected {lib}/{cell}/{view}, got {actual_lib}/{actual_cell}/{actual_view}")
+    print(f"   [ERROR] CellView mismatch! Expected {lib}/{cell}/{view}, got {actual_lib}/{actual_cell}/{actual_view}")
     return False
 
 
@@ -84,16 +84,19 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
         save_current_cellview,
     )
 
+    # Ensure library exists before opening cellview
+    lib_check = rb_exec(f'if(!ddGetObj("{lib}") dbCreateLib("{lib}" "tphn28hpcpgv18"))', timeout=15)
+
     skill_path = Path(il_file_path)
     if not skill_path.exists():
         candidate = _resolve_output_root() / skill_path.name
         if candidate.exists():
             skill_path = candidate
         else:
-            return f"❌ Error: File {il_file_path} does not exist"
+            return f"[ERROR] Error: File {il_file_path} does not exist"
 
     if skill_path.suffix.lower() not in [".il", ".skill"]:
-        return f"❌ Error: File {skill_path} is not a valid il/skill file"
+        return f"[ERROR] Error: File {skill_path} is not a valid il/skill file"
 
     # Upload to remote server then load — works for both local and remote Virtuoso.
     # The bridge daemon can return ok=False for large scripts due to TCP response
@@ -104,11 +107,11 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
         # Open and verify the correct cellView before each attempt
         ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
         if not ok:
-            return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
+            return f"[ERROR] Error: Failed to open cellView {lib}/{cell}/{view}"
 
         window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
         if not window_ok:
-            return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
+            return f"[ERROR] Error: Failed to open window for {lib}/{cell}/{view}"
 
         ui_redraw(timeout=10)
         sleep(0.5)
@@ -116,7 +119,7 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
 
         # CRITICAL: Verify cv points to the requested cell, not some other cell
         if not _verify_cellview(lib, cell, view):
-            return (f"❌ Error: CellView mismatch — refusing to load {skill_path.name} "
+            return (f"[ERROR] Error: CellView mismatch — refusing to load {skill_path.name} "
                     f"into wrong cell. Expected {lib}/{cell}/{view}. "
                     f"Close other cells in Virtuoso and retry.")
 
@@ -124,18 +127,18 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
         if ok:
             if save:
                 if save_current_cellview(timeout=30):
-                    return f"✅ il file {skill_path.name} executed and saved successfully"
-                return f"✅ il file {skill_path.name} executed successfully but save failed"
-            return f"✅ il file {skill_path.name} executed successfully"
+                    return f"[OK] il file {skill_path.name} executed and saved successfully"
+                return f"[OK] il file {skill_path.name} executed successfully but save failed"
+            return f"[OK] il file {skill_path.name} executed successfully"
 
         # load_il returned False — but Virtuoso may still be executing or may have
         # finished while the TCP response was lost.  Wait and verify.
-        print(f"   ⚠️ Attempt {attempt}/{max_attempts} load_il returned False, waiting 5s then verifying...")
+        print(f"   [WARN] Attempt {attempt}/{max_attempts} load_il returned False, waiting 5s then verifying...")
         sleep(5)
 
         # Re-verify cellView is still correct before checking instances
         if not _verify_cellview(lib, cell, view):
-            return (f"❌ Error: CellView shifted after failed load — {lib}/{cell}/{view} lost focus. "
+            return (f"[ERROR] Error: CellView shifted after failed load — {lib}/{cell}/{view} lost focus. "
                     f"Aborting to prevent polluting other cells.")
 
         # Check if instances were actually created despite the False return
@@ -146,13 +149,13 @@ def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout", sa
             print(f"   ✓ Found {inst_count} instances — script actually succeeded (daemon response was lost)")
             if save:
                 save_current_cellview(timeout=30)
-            return f"✅ il file {skill_path.name} executed and saved successfully (verified after response loss)"
+            return f"[OK] il file {skill_path.name} executed and saved successfully (verified after response loss)"
 
         # Genuinely failed — retry
         if attempt < max_attempts:
             print(f"   No instances found, retrying...")
 
-    return f"❌ il file {skill_path.name} execution failed after {max_attempts} attempts"
+    return f"[ERROR] il file {skill_path.name} execution failed after {max_attempts} attempts"
 
 
 def main():
@@ -166,7 +169,7 @@ def main():
     # Early check — fail fast if bridge is not installed
     ok, info = check_bridge_installed()
     if not ok:
-        print(f"❌ {info}")
+        print(f"[ERROR] {info}")
         sys.exit(2)
 
     # Parse arguments
@@ -190,7 +193,7 @@ def main():
 
     # Check input file exists
     if not Path(il_file_path).exists():
-        print(f"❌ Error: SKILL file not found")
+        print(f"[ERROR] Error: SKILL file not found")
         print(f"   File: {Path(il_file_path).resolve()}")
         print(f"   Working directory: {os.getcwd()}")
         print(f"   Please check:")
@@ -228,7 +231,7 @@ def main():
     }
 
     try:
-        print(f"🔧 Executing SKILL file in Virtuoso...")
+        print(f"[>>] Executing SKILL file in Virtuoso...")
         print(f"   File: {il_file_path}")
         print(f"   Library: {lib}")
         print(f"   Cell: {cell}")
@@ -238,7 +241,7 @@ def main():
 
         # Run IL file
         run_result = run_il_file(il_file_path=il_file_path, lib=lib, cell=cell, view=view, save=True)
-        if not run_result.startswith("✅"):
+        if not run_result.startswith("[OK]"):
             result_dict["message"] = run_result
             print(json.dumps(result_dict, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -265,13 +268,13 @@ def main():
             result_dict["screenshot_path"] = save_path
             result_dict["observations"].append(f"Screenshot saved: {save_path}")
         else:
-            result_dict["message"] = "❌ Screenshot failed"
+            result_dict["message"] = "[ERROR] Screenshot failed"
 
         print(json.dumps(result_dict, ensure_ascii=False, indent=2))
         sys.exit(0)
 
     except Exception as e:
-        result_dict["message"] = f"❌ Error occurred while running il file: {type(e).__name__}: {e}"
+        result_dict["message"] = f"[ERROR] Error occurred while running il file: {type(e).__name__}: {e}"
         print(json.dumps(result_dict, ensure_ascii=False, indent=2))
         import traceback
         traceback.print_exc()

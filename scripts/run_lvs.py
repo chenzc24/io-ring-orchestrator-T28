@@ -134,7 +134,7 @@ def main():
     # Early check — fail fast if bridge is not installed
     ok, info = check_bridge_installed()
     if not ok:
-        print(f"❌ {info}")
+        print(f"[ERROR] {info}")
         sys.exit(2)
 
     # Set output root
@@ -159,7 +159,7 @@ def main():
     tech_node = sys.argv[4] if len(sys.argv) > 4 else "T28"
 
     try:
-        print(f"🔧 Running LVS check...")
+        print(f"[>>] Running LVS check...")
         print(f"   Library: {lib}")
         print(f"   Cell: {cell}")
         print(f"   View: {view}")
@@ -169,7 +169,7 @@ def main():
         node = _normalize_process_node(tech_node)
         script_path = skill_dir / "assets" / "external_scripts" / "calibre" / "run_lvs.csh"
         if not script_path.exists():
-            print(f"❌ Error: LVS script file not found")
+            print(f"[ERROR] Error: LVS script file not found")
             print(f"   Expected path: {script_path}")
             print(f"   Script location: assets/external_scripts/calibre/run_lvs.csh")
             print(f"   Check:")
@@ -182,7 +182,7 @@ def main():
 
         ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="r", timeout=30)
         if not ok:
-            print(f"❌ Error: Failed to open cellView")
+            print(f"[ERROR] Error: Failed to open cellView")
             print(f"   Target: {lib}/{cell}/{view}")
             print(f"   This may indicate:")
             print(f"     1. Virtuoso is not running (check with check_virtuoso_connection.py)")
@@ -202,7 +202,7 @@ def main():
         _failed = (not result) or any(_r.startswith(p) for p in (
             "Remote csh execution failed", "Remote execution failed", "Remote upload failed"))
         if _failed:
-            print(f"❌ Error: LVS script execution failed")
+            print(f"[ERROR] Error: LVS script execution failed")
             print(f"   Command: {script_path}")
             print(f"   Arguments: {lib} {cell} {view} {node}")
             print(f"   Result: {result}")
@@ -213,7 +213,7 @@ def main():
             print(f"     4. Cadence/Mentor environment not sourced correctly")
             print(f"   Full output:")
             print(str(result))
-            return f"❌ LVS check failed: {result}"
+            return f"[ERROR] LVS check failed: {result}"
 
         print(f"   Script result: Success")
 
@@ -231,7 +231,7 @@ def main():
                           "This usually means stale files from a previous cell were used,\n"
                           "or the Calibre LVS run itself failed silently.",
                           report_file)
-            print(f"❌ Error: LVS summary file not found: {summary_file}")
+            print(f"[ERROR] Error: LVS summary file not found: {summary_file}")
             print(f"   The LVS script completed (exit 0) but no summary was produced for cell '{cell}'.")
             print(f"   This may indicate stale output from a previous run was reused.")
             print(f"   Report file: {report_file}")
@@ -240,14 +240,14 @@ def main():
         parsed = _parse_lvs_summary(summary_file)
         success, msg = _write_report("LVS report", parsed, report_file)
         if not success:
-            print(f"⚠️  Warning: Report generation issue - {msg}")
+            print(f"[WARN]  Warning: Report generation issue - {msg}")
 
         try:
             with open(report_file, "r", encoding="utf-8") as f:
                 report_content = f.read()
             print("\n".join(
                 [
-                    "✅ LVS check completed!",
+                    "[OK] LVS check completed!",
                     f"\nReport location: {report_file}",
                     "\nReport content:",
                     "=" * 50,
@@ -256,28 +256,28 @@ def main():
                 ]
             ))
         except Exception as e:
-            print(f"✅ LVS check completed!")
-            print(f"⚠️  Warning: Cannot read report content: {e}")
+            print(f"[OK] LVS check completed!")
+            print(f"[WARN]  Warning: Cannot read report content: {e}")
             print(f"   Report file: {report_file}")
 
         sys.exit(0)
 
     except FileNotFoundError as e:
-        print(f"❌ Error: File not found - {e}")
+        print(f"[ERROR] Error: File not found - {e}")
         print(f"   Check that specified file exists at correct path")
         print(f"   Verify working directory or use absolute paths")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except RuntimeError as e:
-        print(f"❌ Error: Runtime error - {e}")
+        print(f"[ERROR] Error: Runtime error - {e}")
         print(f"   This may indicate a Virtuoso connection or access issue")
         print(f"   Try running check_virtuoso_connection.py to verify Virtuoso status")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error during LVS: {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during LVS: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

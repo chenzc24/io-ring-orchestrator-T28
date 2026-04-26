@@ -95,7 +95,7 @@ def main():
     # Early check — fail fast if bridge is not installed
     ok, info = check_bridge_installed()
     if not ok:
-        print(f"❌ {info}")
+        print(f"[ERROR] {info}")
         sys.exit(2)
 
     # Set output root
@@ -120,7 +120,7 @@ def main():
     tech_node = sys.argv[4] if len(sys.argv) > 4 else "T28"
 
     try:
-        print(f"🔧 Running DRC check...")
+        print(f"[>>] Running DRC check...")
         print(f"   Library: {lib}")
         print(f"   Cell: {cell}")
         print(f"   View: {view}")
@@ -130,7 +130,7 @@ def main():
         node = _normalize_process_node(tech_node)
         script_path = skill_dir / "assets" / "external_scripts" / "calibre" / "run_drc.csh"
         if not script_path.exists():
-            print(f"❌ Error: DRC script file not found")
+            print(f"[ERROR] Error: DRC script file not found")
             print(f"   Expected path: {script_path}")
             print(f"   Script location: assets/external_scripts/calibre/run_drc.csh")
             raise FileNotFoundError(f"DRC script file not found: {script_path}")
@@ -140,7 +140,7 @@ def main():
 
         ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="r", timeout=30)
         if not ok:
-            print(f"❌ Error: Failed to open cellView")
+            print(f"[ERROR] Error: Failed to open cellView")
             print(f"   Target: {lib}/{cell}/{view}")
             print(f"   This may indicate:")
             print(f"     1. Virtuoso is not running (check with check_virtuoso_connection.py)")
@@ -160,7 +160,7 @@ def main():
         _failed = (not result) or any(_r.startswith(p) for p in (
             "Remote csh execution failed", "Remote execution failed", "Remote upload failed"))
         if _failed:
-            print(f"❌ Error: DRC script execution failed")
+            print(f"[ERROR] Error: DRC script execution failed")
             print(f"   Command: {script_path}")
             print(f"   Arguments: {lib} {cell} {view} {node}")
             print(f"   Result: {result}")
@@ -172,7 +172,7 @@ def main():
             print(f"     5. Cadence/Mentor environment not sourced correctly")
             print(f"   Full output:")
             print(str(result))
-            return f"❌ DRC check failed: {result}"
+            return f"[ERROR] DRC check failed: {result}"
 
         print(f"   Script result: Success")
 
@@ -186,14 +186,14 @@ def main():
         parsed = _parse_drc_summary(summary_file)
         success, msg = _write_report("DRC report", parsed, report_file)
         if not success:
-            print(f"⚠️  Warning: Report generation issue - {msg}")
+            print(f"[WARN]  Warning: Report generation issue - {msg}")
 
         try:
             with open(report_file, "r", encoding="utf-8") as f:
                 report_content = f.read()
             print("\n".join(
                 [
-                    "✅ DRC check completed!",
+                    "[OK] DRC check completed!",
                     f"\nReport location: {report_file}",
                     "\nReport content:",
                     "=" * 50,
@@ -202,28 +202,28 @@ def main():
                 ]
             ))
         except Exception as e:
-            print(f"✅ DRC check completed!")
-            print(f"⚠️  Warning: Cannot read report content: {e}")
+            print(f"[OK] DRC check completed!")
+            print(f"[WARN]  Warning: Cannot read report content: {e}")
             print(f"   Report file: {report_file}")
 
         sys.exit(0)
 
     except FileNotFoundError as e:
-        print(f"❌ Error: File not found - {e}")
+        print(f"[ERROR] Error: File not found - {e}")
         print(f"   Check that the specified file exists at the correct path")
         print(f"   Verify working directory or use absolute paths")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except RuntimeError as e:
-        print(f"❌ Error: Runtime error - {e}")
+        print(f"[ERROR] Error: Runtime error - {e}")
         print(f"   This may indicate a Virtuoso connection or access issue")
         print(f"   Try running check_virtuoso_connection.py to verify Virtuoso status")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error during DRC: {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during DRC: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

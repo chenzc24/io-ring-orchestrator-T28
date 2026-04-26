@@ -90,7 +90,7 @@ def main():
     # Early check — fail fast if bridge is not installed
     ok, info = check_bridge_installed()
     if not ok:
-        print(f"❌ {info}")
+        print(f"[ERROR] {info}")
         sys.exit(2)
 
     # Set output root
@@ -117,7 +117,7 @@ def main():
     tech_node = "T28"  # Only T28 is supported (T180 removed)
 
     try:
-        print(f"🔧 Running PEX extraction...")
+        print(f"[>>] Running PEX extraction...")
         print(f"   Tech Node: {tech_node}")
         print(f"   Output Root: {output_root}")
 
@@ -125,7 +125,7 @@ def main():
         script_path = skill_dir / "assets" / "external_scripts" / "calibre" / "run_pex.csh"
 
         if not script_path.exists():
-            print(f"❌ Error: PEX script file not found")
+            print(f"[ERROR] Error: PEX script file not found")
             print(f"   Expected path: {script_path}")
             print(f"   Script location: assets/external_scripts/calibre/run_pex.csh")
             raise FileNotFoundError(f"PEX script file not found: {script_path}")
@@ -137,7 +137,7 @@ def main():
         if lib and cell:
             ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="r", timeout=30)
             if not ok:
-                print(f"❌ Error: Failed to open cellView")
+                print(f"[ERROR] Error: Failed to open cellView")
                 print(f"   Target: {lib}/{cell}/{view}")
                 raise RuntimeError(f"Failed to open cellView {lib}/{cell}/{view}")
             print(f"   CellView opened: {lib}/{cell}/{view}")
@@ -147,7 +147,7 @@ def main():
             print(f"   No lib/cell provided, using current design...")
             lib, cell, current_view = get_current_design()
             if lib is None or cell is None:
-                print(f"❌ Error: Cannot get current design information")
+                print(f"[ERROR] Error: Cannot get current design information")
                 print(f"   Please ensure a design is open in Virtuoso, or specify lib and cell")
                 raise RuntimeError("Cannot get current design information")
             print(f"   Current design: {lib}/{cell}/{current_view}")
@@ -170,7 +170,7 @@ def main():
         print(f"   Script execution completed")
 
         if not result or str(result).startswith("Remote csh execution failed"):
-            print(f"❌ Error: PEX script execution failed")
+            print(f"[ERROR] Error: PEX script execution failed")
             print(f"   Command: {script_path}")
             print(f"   Arguments: {lib} {cell} {view} {node}")
             print(f"   Result: {result}")
@@ -210,7 +210,7 @@ def main():
             f.write(f"Design Library: {lib}\nDesign Cell: {cell}\n\n")
             f.write(f"PEX netlist path: {netlist_file if netlist_file.exists() else 'Not generated'}\n")
             f.write(f"PEX log file: {log_file if log_file.exists() else 'Not generated'}\n\n")
-            f.write("✅ PEX extraction process executed successfully!\n\n")
+            f.write("[OK] PEX extraction process executed successfully!\n\n")
             # Log summary
             if log_file.exists():
                 f.write("Log summary:\n")
@@ -238,7 +238,7 @@ def main():
             except Exception:
                 pass
             print("\n".join([
-                "✅ PEX process completed!",
+                "[OK] PEX process completed!",
                 f"\nReport location: {report_file}",
                 "\nReport content:",
                 "=" * 50,
@@ -253,24 +253,24 @@ def main():
                     shutil.rmtree(pex_dir)
             except Exception:
                 pass
-            print(f"✅ PEX process completed! Report generated but reading failed: {e}")
+            print(f"[OK] PEX process completed! Report generated but reading failed: {e}")
             sys.exit(0)
 
     except FileNotFoundError as e:
-        print(f"❌ Error: File not found - {e}")
+        print(f"[ERROR] Error: File not found - {e}")
         print(f"   Check that the PEX script exists at the correct path")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except RuntimeError as e:
-        print(f"❌ Error: Runtime error - {e}")
+        print(f"[ERROR] Error: Runtime error - {e}")
         print(f"   This may indicate a Virtuoso connection or access issue")
         print(f"   Try running check_virtuoso_connection.py to verify Virtuoso status")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error during PEX: {type(e).__name__}: {e}")
+        print(f"[ERROR] Error during PEX: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
