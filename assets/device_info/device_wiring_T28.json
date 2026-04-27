@@ -1,0 +1,255 @@
+{
+  "_comment": "T28 device wiring table. Maps each base device name (no _H_G/_V_G suffix) to its pin label sources. The enrichment engine resolves label_from references to concrete labels per instance. Pin order in this file determines pin order in output JSON. emit:false pins are defined but NOT included in the output intent_graph (currently used for POC pins, which the existing pipeline never emits).",
+  "schema_version": "1.0",
+  "tech_node": "T28",
+  "label_from_taxonomy": {
+    "self": "Instance's own name",
+    "self_core": "Instance name + '_CORE'",
+    "domain.vdd_provider": "VDD provider signal name from instance's analog domain",
+    "domain.vss_provider": "VSS provider signal name from instance's analog domain",
+    "domain.low_vdd": "Low-voltage VDD signal from instance's digital domain",
+    "domain.low_vss": "Low-voltage VSS signal from instance's digital domain",
+    "domain.high_vdd": "High-voltage VDD signal from instance's digital domain",
+    "domain.high_vss": "High-voltage VSS signal from instance's digital domain",
+    "global.vss_ground": "Universal VSS ground (overridden to ring_esd if active)",
+    "const.POC": "Literal 'POC'",
+    "const.noConn": "Literal 'noConn'",
+    "io.ren": "Resolved via io_direction_rules[direction] for digital_io",
+    "io.oen": "Resolved via io_direction_rules[direction] for digital_io",
+    "io.c": "Resolved via io_direction_rules[direction] for digital_io",
+    "io.i": "Resolved via io_direction_rules[direction] for digital_io"
+  },
+  "devices": {
+    "PDB3AC": {
+      "family": "analog_io",
+      "pins": {
+        "AIO":    {"label_from": "self"},
+        "TACVSS": {"label_from": "domain.vss_provider"},
+        "TACVDD": {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+
+    "PVDD3AC": {
+      "family": "analog_power_provider",
+      "pins": {
+        "AVDD":   {"label_from": "self_core"},
+        "TACVSS": {"label_from": "domain.vss_provider"},
+        "TACVDD": {"label_from": "self"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVSS3AC": {
+      "family": "analog_ground_provider",
+      "pins": {
+        "AVSS":   {"label_from": "self_core"},
+        "TACVSS": {"label_from": "self"},
+        "TACVDD": {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVDD3A": {
+      "family": "analog_power_provider",
+      "pins": {
+        "AVDD":   {"label_from": "self_core"},
+        "TAVSS":  {"label_from": "domain.vss_provider"},
+        "TAVDD":  {"label_from": "self"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVSS3A": {
+      "family": "analog_ground_provider",
+      "pins": {
+        "AVSS":   {"label_from": "self_core"},
+        "TAVSS":  {"label_from": "self"},
+        "TAVDD":  {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+
+    "PVDD1AC": {
+      "family": "analog_power_consumer",
+      "pins": {
+        "AVDD":   {"label_from": "self"},
+        "TACVSS": {"label_from": "domain.vss_provider"},
+        "TACVDD": {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVSS1AC": {
+      "_correction_note": "v2 fix: TACVSS was 'self' in earlier draft; corrected to domain.vss_provider per enrichment_rules_T28.md §3.2 (consumer rule).",
+      "family": "analog_ground_consumer",
+      "pins": {
+        "AVSS":   {"label_from": "self"},
+        "TACVSS": {"label_from": "domain.vss_provider"},
+        "TACVDD": {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVDD1A": {
+      "family": "analog_power_consumer",
+      "pins": {
+        "AVDD":   {"label_from": "self"},
+        "TAVSS":  {"label_from": "domain.vss_provider"},
+        "TAVDD":  {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+    "PVSS1A": {
+      "_correction_note": "v2 fix: TAVSS was 'self' in earlier draft; corrected to domain.vss_provider.",
+      "family": "analog_ground_consumer",
+      "pins": {
+        "AVSS":   {"label_from": "self"},
+        "TAVSS":  {"label_from": "domain.vss_provider"},
+        "TAVDD":  {"label_from": "domain.vdd_provider"},
+        "VSS":    {"label_from": "global.vss_ground"}
+      }
+    },
+
+    "PVSS2A": {
+      "_comment": "Ring ESD analog pad. Only used when global.ring_esd is set. VSS = self (own ESD signal name).",
+      "family": "analog_esd",
+      "pins": {
+        "VSS":   {"label_from": "self"},
+        "TAVSS": {"label_from": "domain.vss_provider"},
+        "TAVDD": {"label_from": "domain.vdd_provider"}
+      }
+    },
+
+    "PVDD1DGZ": {
+      "family": "digital_power_low",
+      "pins": {
+        "VDD":    {"label_from": "self"},
+        "VSS":    {"label_from": "global.vss_ground"},
+        "VDDPST": {"label_from": "domain.high_vdd"},
+        "VSSPST": {"label_from": "domain.high_vss"},
+        "POC":    {"label_from": "const.POC", "emit": false}
+      }
+    },
+    "PVSS1DGZ": {
+      "family": "digital_ground_low",
+      "pins": {
+        "VDD":    {"label_from": "domain.low_vdd"},
+        "VSS":    {"label_from": "self"},
+        "VDDPST": {"label_from": "domain.high_vdd"},
+        "VSSPST": {"label_from": "domain.high_vss"},
+        "POC":    {"label_from": "const.POC", "emit": false}
+      }
+    },
+    "PVDD2POC": {
+      "family": "digital_power_high",
+      "pins": {
+        "VDD":    {"label_from": "domain.low_vdd"},
+        "VSS":    {"label_from": "global.vss_ground"},
+        "VDDPST": {"label_from": "self"},
+        "VSSPST": {"label_from": "domain.high_vss"},
+        "POC":    {"label_from": "const.POC", "emit": false}
+      }
+    },
+    "PVSS2DGZ": {
+      "family": "digital_ground_high",
+      "pins": {
+        "VDD":    {"label_from": "domain.low_vdd"},
+        "VSS":    {"label_from": "global.vss_ground"},
+        "VDDPST": {"label_from": "domain.high_vdd"},
+        "VSSPST": {"label_from": "self"},
+        "POC":    {"label_from": "const.POC", "emit": false}
+      }
+    },
+
+    "PDDW16SDGZ": {
+      "_comment": "Default digital IO. REN/OEN/C/I behavior depends on direction (input|output).",
+      "family": "digital_io",
+      "pins": {
+        "VDD":    {"label_from": "domain.low_vdd"},
+        "VSS":    {"label_from": "global.vss_ground"},
+        "VDDPST": {"label_from": "domain.high_vdd"},
+        "VSSPST": {"label_from": "domain.high_vss"}
+      },
+      "io_direction_rules": {
+        "_comment": "These pins exist on the device but are not emitted in the simplified intent_graph format the existing pipeline uses (only the 4 core power pins are emitted). They are documented here for engine completeness and future use.",
+        "input": {
+          "REN": {"label_from": "global.vss_ground", "emit": false},
+          "OEN": {"label_from": "domain.low_vdd",   "emit": false},
+          "C":   {"label_from": "self_core",         "emit": false},
+          "I":   {"label_from": "global.vss_ground", "emit": false},
+          "PAD": {"label_from": "self",              "emit": false},
+          "POC": {"label_from": "const.POC",         "emit": false}
+        },
+        "output": {
+          "REN": {"label_from": "domain.low_vdd",   "emit": false},
+          "OEN": {"label_from": "global.vss_ground", "emit": false},
+          "C":   {"label_from": "const.noConn",      "emit": false},
+          "I":   {"label_from": "self_core",         "emit": false},
+          "PAD": {"label_from": "self",              "emit": false},
+          "POC": {"label_from": "const.POC",         "emit": false}
+        }
+      }
+    },
+    "PRUW08SDGZ": {
+      "_comment": "Alternative digital IO. Differs from PDDW16 only in input direction REN behavior (REN→VDD instead of REN→VSS).",
+      "family": "digital_io",
+      "pins": {
+        "VDD":    {"label_from": "domain.low_vdd"},
+        "VSS":    {"label_from": "global.vss_ground"},
+        "VDDPST": {"label_from": "domain.high_vdd"},
+        "VSSPST": {"label_from": "domain.high_vss"}
+      },
+      "io_direction_rules": {
+        "input": {
+          "REN": {"label_from": "domain.low_vdd",   "emit": false},
+          "OEN": {"label_from": "domain.low_vdd",   "emit": false},
+          "C":   {"label_from": "self_core",         "emit": false},
+          "I":   {"label_from": "global.vss_ground", "emit": false},
+          "PAD": {"label_from": "self",              "emit": false},
+          "POC": {"label_from": "const.POC",         "emit": false}
+        },
+        "output": {
+          "REN": {"label_from": "domain.low_vdd",   "emit": false},
+          "OEN": {"label_from": "global.vss_ground", "emit": false},
+          "C":   {"label_from": "const.noConn",      "emit": false},
+          "I":   {"label_from": "self_core",         "emit": false},
+          "PAD": {"label_from": "self",              "emit": false},
+          "POC": {"label_from": "const.POC",         "emit": false}
+        }
+      }
+    }
+  },
+
+  "corner_devices": {
+    "PCORNER_G": {
+      "_comment": "Both adjacent pads are digital",
+      "family": "corner_digital",
+      "no_suffix": true
+    },
+    "PCORNERA_G": {
+      "_comment": "At least one adjacent pad is analog",
+      "family": "corner_analog_or_mixed",
+      "no_suffix": true
+    }
+  },
+
+  "family_classification": {
+    "_comment": "Used by corner generation to determine PCORNER_G vs PCORNERA_G from adjacent pad device families.",
+    "digital_families": [
+      "digital_io",
+      "digital_power_low",
+      "digital_ground_low",
+      "digital_power_high",
+      "digital_ground_high"
+    ],
+    "analog_families": [
+      "analog_io",
+      "analog_power_provider",
+      "analog_ground_provider",
+      "analog_power_consumer",
+      "analog_ground_consumer",
+      "analog_esd"
+    ]
+  },
+
+  "digital_io_devices": {
+    "_comment": "Devices that require 'direction' field on instance.",
+    "list": ["PDDW16SDGZ", "PRUW08SDGZ"]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "tech_node": "T28",
+  "ring_config": {
+    "width": 3,
+    "height": 3,
+    "placement_order": "counterclockwise"
+  },
+  "instances": [
+    {"name": "VCM",   "position": "left_0",   "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "IBAMP", "position": "left_1",   "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "IBREF", "position": "left_2",   "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "AVDD",  "position": "bottom_0", "type": "pad", "device": "PVDD1AC", "domain": "ana_1"},
+    {"name": "AVSS",  "position": "bottom_1", "type": "pad", "device": "PVSS1AC", "domain": "ana_1"},
+    {"name": "VIN",   "position": "bottom_2", "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "VIP",   "position": "right_0",  "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "VAMP",  "position": "right_1",  "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "IBAMP", "position": "right_2",  "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "IBREF", "position": "top_0",    "type": "pad", "device": "PDB3AC",  "domain": "ana_1"},
+    {"name": "VDDIB", "position": "top_1",    "type": "pad", "device": "PVDD3AC", "domain": "ana_1"},
+    {"name": "VSSIB", "position": "top_2",    "type": "pad", "device": "PVSS3AC", "domain": "ana_1"}
+  ],
+  "domains": {
+    "ana_1": {
+      "kind": "analog",
+      "vdd_provider": "VDDIB",
+      "vss_provider": "VSSIB"
+    }
+  },
+  "global": {
+    "vss_ground": "GIOL",
+    "ring_esd": null
+  },
+  "overrides": {}
+}

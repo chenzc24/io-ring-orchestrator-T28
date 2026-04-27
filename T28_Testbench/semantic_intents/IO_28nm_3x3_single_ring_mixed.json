@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "tech_node": "T28",
+  "ring_config": {
+    "width": 3,
+    "height": 3,
+    "placement_order": "counterclockwise"
+  },
+  "instances": [
+    {"name": "VCM",   "position": "left_0",   "type": "pad", "device": "PDB3AC",     "domain": "ana_1"},
+    {"name": "AVDD",  "position": "left_1",   "type": "pad", "device": "PVDD3AC",    "domain": "ana_1"},
+    {"name": "AVSS",  "position": "left_2",   "type": "pad", "device": "PVSS3AC",    "domain": "ana_1"},
+    {"name": "VIOL",  "position": "bottom_0", "type": "pad", "device": "PVDD1DGZ",   "domain": "dig_1"},
+    {"name": "GIOL",  "position": "bottom_1", "type": "pad", "device": "PVSS1DGZ",   "domain": "dig_1"},
+    {"name": "VIOH",  "position": "bottom_2", "type": "pad", "device": "PVDD2POC",   "domain": "dig_1"},
+    {"name": "GIOH",  "position": "right_0",  "type": "pad", "device": "PVSS2DGZ",   "domain": "dig_1"},
+    {"name": "D0",    "position": "right_1",  "type": "pad", "device": "PDDW16SDGZ", "domain": "dig_1", "direction": "output"},
+    {"name": "D1",    "position": "right_2",  "type": "pad", "device": "PDDW16SDGZ", "domain": "dig_1", "direction": "output"},
+    {"name": "RST",   "position": "top_0",    "type": "pad", "device": "PDDW16SDGZ", "domain": "dig_1", "direction": "input"},
+    {"name": "CLKO",  "position": "top_1",    "type": "pad", "device": "PDDW16SDGZ", "domain": "dig_1", "direction": "input"},
+    {"name": "VIN",   "position": "top_2",    "type": "pad", "device": "PDB3AC",     "domain": "ana_1"}
+  ],
+  "domains": {
+    "ana_1": {"kind": "analog",  "vdd_provider": "AVDD", "vss_provider": "AVSS"},
+    "dig_1": {"kind": "digital", "low_vdd": "VIOL", "low_vss": "GIOL", "high_vdd": "VIOH", "high_vss": "GIOH"}
+  },
+  "global": {
+    "vss_ground": "GIOL",
+    "ring_esd": null
+  },
+  "overrides": {}
+}

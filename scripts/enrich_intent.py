@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Enrich Intent - T28 Skill Script
+
+Runs the enrichment engine on a semantic intent JSON to produce a full
+intent graph JSON (mechanically wired pins, suffix, corners, gate checks).
+
+Usage:
+    python enrich_intent.py <semantic_intent.json> <intent_graph.json> [tech_node]
+
+Exit Codes:
+    0 - Success
+    1 - Semantic intent input error (read engine stderr for fix hint)
+    2 - Wiring table or engine bug
+    3 - Gate failure (read engine stderr; re-classify in semantic intent)
+"""
+
+import os
+import sys
+from pathlib import Path
+
+skill_dir = Path(__file__).parent.parent.resolve()
+sys.path.insert(0, str(skill_dir))
+
+
+def main():
+    from assets.core.layout.enrichment_engine import (
+        enrich,
+        EngineError,
+        InputError,
+        WiringError,
+        GateError,
+    )
+
+    if len(sys.argv) < 3:
+        print("Usage: python enrich_intent.py <semantic_intent.json> <intent_graph.json> [tech_node]")
+        print("")
+        print("Arguments:")
+        print("  semantic_intent.json  - AI-produced semantic intent (input)")
+        print("  intent_graph.json     - Full pin-wired intent graph (output)")
+        print("  tech_node             - Optional: T28 (default)")
+        print("")
+        print("Exit codes:")
+        print("  0 - Success")
+        print("  1 - Semantic intent input error")
+        print("  2 - Wiring table / engine bug")
+        print("  3 - Gate failure")
+        sys.exit(2)
+
+    semantic_path = Path(sys.argv[1]).resolve()
+    output_path = Path(sys.argv[2]).resolve()
+    tech_node = sys.argv[3] if len(sys.argv) > 3 else "T28"
+
+    if tech_node != "T28":
+        print(f"[ERROR] Only T28 supported in this engine version (got: {tech_node})")
+        sys.exit(2)
+
+    wiring_path = skill_dir / "assets" / "device_info" / "device_wiring_T28.json"
+    trace_path = output_path.with_name(
+        output_path.stem.replace("intent_graph", "enrichment_trace") + ".json"
+    )
+    if trace_path == output_path:
+        trace_path = output_path.with_suffix(".trace.json")
+
+    print(f"[>>] Enriching semantic intent...")
+    print(f"   Input:    {semantic_path}")
+    print(f"   Output:   {output_path}")
+    print(f"   Trace:    {trace_path}")
+    print(f"   Wiring:   {wiring_path}")
+
+    try:
+        result = enrich(semantic_path, wiring_path, output_path, trace_path)
+    except InputError as e:
+        print("", file=sys.stderr)
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+    except WiringError as e:
+        print("", file=sys.stderr)
+        print(str(e), file=sys.stderr)
+        sys.exit(2)
+    except GateError as e:
+        print("", file=sys.stderr)
+        print(str(e), file=sys.stderr)
+        sys.exit(3)
+    except Exception as e:
+        print("", file=sys.stderr)
+        print(f"[ENGINE-BUG] Unexpected error: {type(e).__name__}: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(2)
+
+    n_pads = sum(1 for i in result["intent_graph"]["instances"] if i["type"] in ("pad", "inner_pad"))
+    n_corners = sum(1 for i in result["intent_graph"]["instances"] if i["type"] == "corner")
+    duration = result["trace"]["duration_ms"]
+    warnings = result["trace"]["gates"]["G8_domain_continuity"].get("warnings", [])
+
+    print(f"")
+    print(f"[OK] Enrichment complete in {duration}ms")
+    print(f"   Pads: {n_pads}, Corners: {n_corners}")
+    if result["trace"]["esd_override_applied"]:
+        print(f"   Ring ESD override applied to {result['trace']['esd_pads_overridden']} pads")
+    if warnings:
+        print(f"   [WARN] Domain continuity:")
+        for w in warnings:
+            print(f"     - {w}")
+    print(f"   Wrote: {output_path}")
+    print(f"   Trace: {trace_path}")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
