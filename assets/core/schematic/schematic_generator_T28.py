@@ -616,7 +616,7 @@ class SchematicGenerator:
             template = self.template_manager.get_template(device)
             
             if not template:
-                print(f"⚠️  Warning: Template not found for device type {device}, skipping {inst['name']}")
+                print(f"[WARN] Warning: Template not found for device type {device}, skipping {inst['name']}")
                 continue
             
             # Load device library (if not loaded yet)
@@ -742,8 +742,8 @@ class SchematicGenerator:
             for cmd in commands:
                 f.write(cmd + '\n')
         
-        print(f"✅ Successfully generated schematic file: {output_file}")
-        print(f"📊 Statistics:")
+        print(f"[OK] Successfully generated schematic file: {output_file}")
+        print(f"[--] Statistics:")
         print(f"  - Device instance count: {len(schematic_instances)}")
         print(f"  - Device types used: {', '.join(loaded_devices)}")
         print(f"  - SKILL command count: {len(commands)}")
@@ -847,7 +847,7 @@ def load_templates_from_json(json_file=None):
             error_msg += f"  {i}. {path}\n"
         if len(unique_paths) > 10:
             error_msg += f"  ... and {len(unique_paths) - 10} more\n"
-        error_msg += f"\n💡 Suggestions:\n"
+        error_msg += f"\nSuggestions:\n"
         error_msg += f"  1. Set AMS_IO_AGENT_PATH environment variable to AMS-IO-Agent directory\n"
         error_msg += f"  2. Run from AMS-IO-Agent directory (cd AMS-IO-Agent)\n"
         error_msg += f"  3. Provide absolute path to template file\n"

@@ -30,8 +30,8 @@ class AutoFillerGeneratorT28:
         existing_separators = [comp for comp in layout_components if comp.get("type") == "separator" or DeviceClassifier.is_separator_device(comp.get("device", ""))]
         
         if existing_fillers or existing_separators:
-            print(f"🔍 Detected filler components in intent graph: {len(existing_fillers)} fillers, {len(existing_separators)} separators")
-            print("📝 Skipping auto-filler generation, using components defined in intent graph")
+            print(f"[--] Detected filler components in intent graph: {len(existing_fillers)} fillers, {len(existing_separators)} separators")
+            print("[--] Skipping auto-filler generation, using components defined in intent graph")
             return layout_components
         
         # Get placement order

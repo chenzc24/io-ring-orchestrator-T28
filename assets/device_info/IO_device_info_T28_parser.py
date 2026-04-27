@@ -996,11 +996,11 @@ def parse_and_save_templates():
         with open(skill_output_file, 'r', encoding='utf-8') as f:
             complete_skill_output = f.read()
     except FileNotFoundError:
-        print(f"❌ Error: SKILL output file '{skill_output_file}' not found")
+        print(f"[ERROR] Error: SKILL output file '{skill_output_file}' not found")
         print("Please ensure the file exists in the current directory")
         return None
     except Exception as e:
-        print(f"❌ Error reading SKILL output file: {e}")
+        print(f"[ERROR] Error reading SKILL output file: {e}")
         return None
 
     # Create template manager and parse
@@ -1011,7 +1011,7 @@ def parse_and_save_templates():
     output_file = "device_templates.json"
     template_manager.save_templates_to_json(output_file)
     
-    print(f"✅ Successfully parsed and saved {len(template_manager.templates)} device templates to {output_file}")
+    print(f"[OK] Successfully parsed and saved {len(template_manager.templates)} device templates to {output_file}")
     print("Available device types:")
     for device_type in sorted(template_manager.templates.keys()):
         print(f"  - {device_type}")

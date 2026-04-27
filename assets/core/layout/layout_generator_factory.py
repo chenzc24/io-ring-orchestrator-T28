@@ -44,7 +44,7 @@ def validate_layout_config(json_file: str, process_node: str = "T28") -> dict:
     """
     import json
     
-    print(f"🔍 Validating intent graph file: {json_file}")
+    print(f"[>>] Validating intent graph file: {json_file}")
     
     try:
         with open(json_file, 'r', encoding='utf-8') as f:
@@ -64,14 +64,14 @@ def validate_layout_config(json_file: str, process_node: str = "T28") -> dict:
     
     # Check if it's the new relative position format
     if "ring_config" in config_data and "instances" in config_data:
-        print("🔧 Detected relative position format, converting for validation...")
+        print("[--] Detected relative position format, converting for validation...")
         
         # Convert relative positions to absolute positions
         instances = config_data["instances"]
         ring_config = config_data["ring_config"]
         layout_components = generator.convert_relative_to_absolute(instances, ring_config)
         
-        print(f"📊 Conversion completed: {len(instances)} relative positions -> {len(layout_components)} absolute positions")
+        print(f"[OK] Conversion completed: {len(instances)} relative positions -> {len(layout_components)} absolute positions")
         
     else:
         # Old format handling

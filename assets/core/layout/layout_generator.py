@@ -226,7 +226,7 @@ class LayoutGeneratorT28:
             relative_pos = self._extract_relative_position(instance)
             device = instance.get("device", "")
             if not device:
-                raise ValueError(f"❌ Error: Instance '{name}' must have 'device' field")
+                raise ValueError(f"[ERROR] Error: Instance '{name}' must have 'device' field")
             
             component_type = self._get_component_type(instance)
             direction = instance.get("direction", "")
@@ -271,14 +271,14 @@ class LayoutGeneratorT28:
         # Check corners
         has_corners = any(comp.get("type") == "corner" for comp in converted_components)
         if not has_corners:
-            raise ValueError("❌ Error: Corner components are missing in the intent graph!")
+            raise ValueError("[ERROR] Error: Corner components are missing in the intent graph!")
         
         # Handle inner pads
         for inner_pad in inner_pads:
             name = inner_pad.get("name", "")
             device = inner_pad.get("device", "")
             if not device:
-                raise ValueError(f"❌ Error: Inner pad '{name}' must have 'device' field")
+                raise ValueError(f"[ERROR] Error: Inner pad '{name}' must have 'device' field")
             
             position_str = inner_pad.get("position_str") or inner_pad.get("position", "")
             direction = inner_pad.get("direction", "")
@@ -311,8 +311,8 @@ class LayoutGeneratorT28:
 
 def generate_layout_from_json(json_file: str, output_file: str = "generated_layout.il"):
     """Generate 28nm layout from JSON file"""
-    print(f"📖 Reading intent graph file: {json_file}")
-    print(f"🔧 Using process node: 28nm")
+    print(f"[>>] Reading intent graph file: {json_file}")
+    print(f"[--] Using process node: 28nm")
     
     with open(json_file, 'r', encoding='utf-8') as f:
         config = json.load(f)
@@ -375,7 +375,7 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     if "device_masters" not in ring_config:
         ring_config["device_masters"] = generator.config.get("device_masters", {})
     
-    print("✅ Configuration parameters set")
+    print("[OK] Configuration parameters set")
     
     # Convert relative positions
     # if any("position" in instance and "_" in str(instance["position"]) for instance in instances):
@@ -404,16 +404,16 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     generator.auto_filler_generator.config["chip_height"] = chip_height
     generator.position_calculator.current_ring_config = generator.config
 
-    print(f"📊 Outer ring pads: {len(outer_pads)}")
-    print(f"📊 Inner ring pads: {len(inner_pads)}")
-    print(f"📊 Corners: {len(corners)}")
+    print(f"[--] Outer ring pads: {len(outer_pads)}")
+    print(f"[--] Inner ring pads: {len(inner_pads)}")
+    print(f"[--] Corners: {len(corners)}")
     
     # Validate
     # validation_components = outer_pads + corners
     # process_node = ring_config.get("process_node"
     # validation_result = generator.layout_validator.validate_layout_rules(validation_components, process_node)
     # if not validation_result["valid"]:
-    #     print(f"❌ Layout rule validation failed: {validation_result['message']}")
+    #     print(f"[ERROR] Layout rule validation failed: {validation_result['message']}")
     #     return None
     
     # Check fillers
@@ -429,7 +429,7 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     
     validation_components = outer_pads + corners
     if existing_fillers or existing_separators:
-        print(f"🔍 Detected filler components in JSON: {len(existing_fillers)} fillers, {len(existing_separators)} separators")
+        print(f"[--] Detected filler components in JSON: {len(existing_fillers)} fillers, {len(existing_separators)} separators")
         all_components_with_fillers = []
         for comp in all_instances:
             if not isinstance(comp, dict):
@@ -456,7 +456,7 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     ]
     
     # Generate SKILL script
-    print("🚀 Starting Layout Skill script generation...")
+    print("[>>] Starting Layout Skill script generation...")
     skill_commands = []
     
     skill_commands.append("cv = geGetWindowCellView()")
@@ -544,18 +544,18 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
         visualization_path = os.path.join(output_dir, vis_name)
         os.makedirs(output_dir, exist_ok=True)
         visualize_layout(output_file, visualization_path)
-        print(f"📊 Visualization generated: {visualization_path}")
+        print(f"[OK] Visualization generated: {visualization_path}")
     except Exception as e:
-        print(f"⚠️  Visualization generation failed: {e}")
+        print(f"[WARN] Visualization generation failed: {e}")
     
     # Keep chip size consistent with the value calculated before downstream processing
     total_components = len(all_components_with_fillers) + len(inner_pads) * 2
     
-    print(f"📐 Chip size: {chip_width} x {chip_height}")
-    print(f"📊 Total components: {total_components}")
+    print(f"[--] Chip size: {chip_width} x {chip_height}")
+    print(f"[--] Total components: {total_components}")
     if inner_pads:
-        print(f"📊 Inner ring pads: {len(inner_pads)}")
-    print(f"✅ Layout Skill script generated: {output_file}")
+        print(f"[--] Inner ring pads: {len(inner_pads)}")
+    print(f"[OK] Layout Skill script generated: {output_file}")
     
     return output_file
 

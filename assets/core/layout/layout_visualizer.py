@@ -980,9 +980,9 @@ if __name__ == '__main__':
     
     try:
         result_path = visualize_layout(il_file, output_file)
-        print(f"✅ Visualization saved to: {result_path}")
+        print(f"[OK] Visualization saved to: {result_path}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

@@ -194,14 +194,14 @@ def run_t28_editor_confirmation_pipeline(
 
     # CLI mode: auto-generate confirmed JSON without GUI editor wait
     if skip_editor_confirmation:
-        print(f"🤖 CLI mode: Auto-generating confirmed config (no GUI editor)...")
+        print(f"[CLI] CLI mode: Auto-generating confirmed config (no GUI editor)...")
         # Use the filler-completed layout as the confirmed payload
         editor_payload = {
             "ring_config": ring_config,
             "instances": all_components_with_fillers,
         }
         result["editor_payload"] = editor_payload
-        print(f"✅ Auto-confirmed layout generated with {len(all_components_with_fillers)} components")
+        print(f"[OK] Auto-confirmed layout generated with {len(all_components_with_fillers)} components")
         # Early return - skip export and GUI wait logic
         return result
 
@@ -218,7 +218,7 @@ def run_t28_editor_confirmation_pipeline(
         else:
             editor_path = json_path.parent / f"{json_path.stem}_intermediate_editor.json"
 
-        print(f"💾 Exporting intermediate layout for Editor validation: {editor_path}")
+        print(f"[>>] Exporting intermediate layout for Editor validation: {editor_path}")
         exported_path = export_to_editor_json(
             all_components_with_fillers,
             ring_config,
@@ -235,7 +235,7 @@ def run_t28_editor_confirmation_pipeline(
         confirmed_path = editor_path.with_name(f"{editor_stem}_confirmed.json")
 
         # GUI mode: launch the standalone browser editor and wait for confirmation
-        print(f"🖥️  Launching browser-based Layout Editor...")
+        print(f"[>>] Launching browser-based Layout Editor...")
         try:
             from ...layout_editor.layout_editor_launcher import launch_layout_editor
             launch_layout_editor(
@@ -256,7 +256,7 @@ def run_t28_editor_confirmation_pipeline(
             if proc.returncode != 0:
                 raise RuntimeError(f"Layout editor exited with code {proc.returncode}")
 
-        print(f"✅ Confirmation received! Loading validated layout from {confirmed_path}")
+        print(f"[OK] Confirmation received! Loading validated layout from {confirmed_path}")
 
         with open(confirmed_path, "r", encoding="utf-8") as f:
             idx_data = json.load(f)
@@ -299,9 +299,9 @@ def run_t28_editor_confirmation_pipeline(
             print(f"   Re-classified: {len(new_pads)} pads, {len(new_corners)} corners")
 
     except ImportError:
-        print("⚠️  Warning: editor_utils not found, skipping intermediate export.")
+        print("[WARN] Warning: editor_utils not found, skipping intermediate export.")
     except Exception as e:
-        print(f"⚠️  Failed to export intermediate layout: {e}\n{_import_traceback_if_error()}")
+        print(f"[WARN] Failed to export intermediate layout: {e}\n{_import_traceback_if_error()}")
 
     return result
 
