@@ -17,7 +17,7 @@ Inputs:
 
 Outputs:
   - intent_graph.json      (full pin-wired output, ~200 lines, golden-compatible)
-  - enrichment_trace.json  (per-instance resolution log + gate results)
+  - console gate summary   (G1-G8 pass/fail + ESD override printed to stdout)
 
 Exit codes (used by scripts/enrich_intent.py CLI):
   0 - success
@@ -328,7 +328,7 @@ def _self_core(name: str) -> str:
 
 def expand_instance(instance: Dict[str, Any], wiring: Dict[str, Any],
                     domains: Dict[str, Any], globals_: Dict[str, Any],
-                    overrides: Dict[str, Any], trace: List[Dict[str, Any]]) -> Dict[str, Any]:
+                    overrides: Dict[str, Any]) -> Dict[str, Any]:
     """Convert a semantic instance to a fully-wired output instance."""
 
     name = instance["name"]
@@ -411,7 +411,6 @@ def expand_instance(instance: Dict[str, Any], wiring: Dict[str, Any],
     pin_overrides = overrides.get(position, {}).get("pin_overrides", {})
 
     pin_connection: "OrderedDict[str, Dict[str, str]]" = OrderedDict()
-    pin_trace = []
 
     for pin_name, pin_spec in device_spec["pins"].items():
         if not pin_spec.get("emit", True):
@@ -421,15 +420,11 @@ def expand_instance(instance: Dict[str, Any], wiring: Dict[str, Any],
             override_val = pin_overrides[pin_name]
             if override_val.startswith("label_from:"):
                 label = ctx.resolve(override_val.split(":", 1)[1])
-                source = f"override:{override_val}"
             else:
                 label = override_val
-                source = "override:literal"
         else:
             label = ctx.resolve(pin_spec["label_from"])
-            source = pin_spec["label_from"]
         pin_connection[pin_name] = {"label": label}
-        pin_trace.append({"pin": pin_name, "source": source, "resolved": label})
 
     out = OrderedDict()
     out["name"] = name
@@ -439,18 +434,6 @@ def expand_instance(instance: Dict[str, Any], wiring: Dict[str, Any],
     if device_base in digital_io_list:
         out["direction"] = instance["direction"]
     out["pin_connection"] = pin_connection
-
-    trace.append({
-        "position": position,
-        "name": name,
-        "input_device": device_base,
-        "computed_suffix": suffix,
-        "full_device": full_device,
-        "domain": ctx.domain_id,
-        "direction": ctx.direction,
-        "pins": pin_trace,
-        "overrides_applied": list(pin_overrides.keys()) if pin_overrides else [],
-    })
 
     return out
 
@@ -711,7 +694,153 @@ def run_gates(intent_graph: Dict[str, Any], semantic: Dict[str, Any],
     warnings = _check_domain_continuity(instances, semantic, w, h)
     results["G8_domain_continuity"] = {"pass": True, "warnings": warnings}
 
+    # G9: Provider signal names exist as instances with correct provider device
+    _check_provider_instances(semantic, wiring, results)
+
+    # G10: Provider-consumer family consistency within each analog domain
+    _check_family_consistency(semantic, wiring, results)
+
     return results
+
+
+def _check_provider_instances(semantic: Dict[str, Any], wiring: Dict[str, Any],
+                             results: Dict[str, Any]) -> None:
+    """G9: Verify provider names in domains exist as instances with correct provider device."""
+    devices = wiring["devices"]
+    provider_families = {"analog_power_provider", "analog_ground_provider",
+                         "digital_power_low", "digital_ground_low",
+                         "digital_power_high", "digital_ground_high"}
+    instances = semantic.get("instances", [])
+    domains = semantic.get("domains", {})
+
+    # Build name → [(device, domain)] lookup (same name can appear at multiple positions)
+    name_to_instances: Dict[str, List[Tuple[str, Optional[str]]]] = {}
+    for inst in instances:
+        name = inst["name"]
+        name_to_instances.setdefault(name, []).append(
+            (inst.get("device", ""), inst.get("domain"))
+        )
+
+    for domain_id, domain_spec in domains.items():
+        kind = domain_spec.get("kind", "")
+
+        if kind == "analog":
+            for provider_key, expected_prefix in [("vdd_provider", "PVDD"), ("vss_provider", "PVSS")]:
+                provider_name = domain_spec.get(provider_key)
+                if not provider_name:
+                    continue
+                matches = name_to_instances.get(provider_name, [])
+                if not matches:
+                    raise GateError(
+                        f"G9: Analog domain '{domain_id}' {provider_key}='{provider_name}' "
+                        f"not found in any instance name",
+                        hint=f"Add an instance with name='{provider_name}' and a provider device "
+                             f"(PVDD3AC/PVSS3AC or PVDD3A/PVSS3A) assigned to domain '{domain_id}'.",
+                        section="§5.5 (Step 3.1 Voltage Domain)",
+                    )
+                # Check that at least one instance with this name in this domain is a provider device
+                has_provider = False
+                for dev, dom in matches:
+                    if dom != domain_id:
+                        continue
+                    dev_spec = devices.get(dev)
+                    if dev_spec and dev_spec.get("family") in provider_families:
+                        has_provider = True
+                        break
+                if not has_provider:
+                    found_devices = [dev for dev, dom in matches if dom == domain_id]
+                    raise GateError(
+                        f"G9: Analog domain '{domain_id}' {provider_key}='{provider_name}' "
+                        f"exists as instance(s) but none use a provider device",
+                        detail=f"found device(s): {found_devices}; expected a provider "
+                               f"(PVDD3AC/PVSS3AC or PVDD3A/PVSS3A)",
+                        hint=f"Change the device for '{provider_name}' in domain '{domain_id}' "
+                             f"to a provider device, or pick a different provider name.",
+                        section="§5.6 (Step 3.2 Provider/consumer device selection)",
+                    )
+
+        elif kind == "digital":
+            provider_role_device = {
+                "low_vdd": "PVDD1DGZ",
+                "low_vss": "PVSS1DGZ",
+                "high_vdd": "PVDD2POC",
+                "high_vss": "PVSS2DGZ",
+            }
+            for provider_key, expected_device in provider_role_device.items():
+                provider_name = domain_spec.get(provider_key)
+                if not provider_name:
+                    continue
+                matches = name_to_instances.get(provider_name, [])
+                if not matches:
+                    raise GateError(
+                        f"G9: Digital domain '{domain_id}' {provider_key}='{provider_name}' "
+                        f"not found in any instance name",
+                        hint=f"Add an instance with name='{provider_name}' and device='{expected_device}'.",
+                        section="§5.3 (Step 2.2 Digital provider assignment)",
+                    )
+                has_correct_device = any(dev == expected_device for dev, _ in matches)
+                if not has_correct_device:
+                    found_devices = list(set(dev for dev, _ in matches))
+                    raise GateError(
+                        f"G9: Digital domain '{domain_id}' {provider_key}='{provider_name}' "
+                        f"exists but no instance uses expected device '{expected_device}'",
+                        detail=f"found device(s): {found_devices}",
+                        hint=f"Change the device for '{provider_name}' to '{expected_device}', "
+                             f"or pick a provider name that already uses it.",
+                        section="§5.3 (Step 2.2 Digital provider assignment)",
+                    )
+
+    results["G9_provider_instances"] = {"pass": True}
+
+
+def _check_family_consistency(semantic: Dict[str, Any], wiring: Dict[str, Any],
+                              results: Dict[str, Any]) -> None:
+    """G10: Provider-consumer family consistency within each analog domain (no AC/A mixing)."""
+    devices = wiring["devices"]
+    instances = semantic.get("instances", [])
+    domains = semantic.get("domains", {})
+
+    # Family suffix groups: AC family (3AC/1AC) vs A family (3A/1A)
+    ac_provider_devices = {"PVDD3AC", "PVSS3AC"}
+    ac_consumer_devices = {"PVDD1AC", "PVSS1AC"}
+    a_provider_devices = {"PVDD3A", "PVSS3A"}
+    a_consumer_devices = {"PVDD1A", "PVSS1A"}
+
+    for domain_id, domain_spec in domains.items():
+        if domain_spec.get("kind") != "analog":
+            continue
+
+        domain_instances = [i for i in instances if i.get("domain") == domain_id]
+        domain_devices = set(i.get("device", "") for i in domain_instances)
+
+        has_ac_provider = bool(domain_devices & ac_provider_devices)
+        has_a_provider = bool(domain_devices & a_provider_devices)
+        has_ac_consumer = bool(domain_devices & ac_consumer_devices)
+        has_a_consumer = bool(domain_devices & a_consumer_devices)
+
+        # Check: AC provider with A consumer (or vice versa)
+        if has_ac_provider and has_a_consumer:
+            bad = domain_devices & a_consumer_devices
+            raise GateError(
+                f"G10: Domain '{domain_id}' mixes AC provider with A consumer devices",
+                detail=f"AC provider(s): {sorted(domain_devices & ac_provider_devices)}, "
+                       f"A consumer(s): {sorted(bad)}",
+                hint="Consumer family must match provider family within the same domain: "
+                     "use PVDD1AC/PVSS1AC (not PVDD1A/PVSS1A) under a PVDD3AC/PVSS3AC provider pair.",
+                section="§5.6 (Step 3.2 Provider/consumer device selection)",
+            )
+        if has_a_provider and has_ac_consumer:
+            bad = domain_devices & ac_consumer_devices
+            raise GateError(
+                f"G10: Domain '{domain_id}' mixes A provider with AC consumer devices",
+                detail=f"A provider(s): {sorted(domain_devices & a_provider_devices)}, "
+                       f"AC consumer(s): {sorted(bad)}",
+                hint="Consumer family must match provider family within the same domain: "
+                     "use PVDD1A/PVSS1A (not PVDD1AC/PVSS1AC) under a PVDD3A/PVSS3A provider pair.",
+                section="§5.6 (Step 3.2 Provider/consumer device selection)",
+            )
+
+    results["G10_family_consistency"] = {"pass": True}
 
 
 def _strip_suffix(device: str) -> str:
@@ -782,8 +911,8 @@ def _check_domain_continuity(instances: List[Dict[str, Any]], semantic: Dict[str
 
 
 def enrich(semantic_path: Path, wiring_path: Path,
-           output_path: Path, trace_path: Path) -> Dict[str, Any]:
-    """Read semantic intent, run engine, write outputs. Return summary dict."""
+           output_path: Path) -> Dict[str, Any]:
+    """Read semantic intent, run engine, write intent graph. Return summary dict."""
 
     started = time.time()
 
@@ -813,10 +942,9 @@ def enrich(semantic_path: Path, wiring_path: Path,
     ring_config = semantic["ring_config"]
 
     # Phase 2: Expand instances
-    trace_instances: List[Dict[str, Any]] = []
     expanded: List[Dict[str, Any]] = []
     for inst in semantic["instances"]:
-        out_inst = expand_instance(inst, wiring, domains, globals_, overrides, trace_instances)
+        out_inst = expand_instance(inst, wiring, domains, globals_, overrides)
         expanded.append(out_inst)
 
     # Phase 3: Generate corners
@@ -840,25 +968,17 @@ def enrich(semantic_path: Path, wiring_path: Path,
     # Phase 5: Gate checks
     gate_results = run_gates(intent_graph, semantic, wiring)
 
-    # Write outputs
+    # Write intent graph
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(intent_graph, f, indent=2, ensure_ascii=False)
 
     duration_ms = int((time.time() - started) * 1000)
-    trace = {
-        "engine_version": "1.0",
-        "wiring_table_version": wiring.get("schema_version", "unknown"),
-        "input_path": str(semantic_path),
-        "output_path": str(output_path),
+
+    return {
+        "intent_graph": intent_graph,
         "duration_ms": duration_ms,
-        "instances": trace_instances,
-        "corners": [{"position": c["position"], "device": c["device"]} for c in corners],
         "esd_override_applied": esd_count > 0,
         "esd_pads_overridden": esd_count,
         "gates": gate_results,
     }
-    with open(trace_path, "w", encoding="utf-8") as f:
-        json.dump(trace, f, indent=2, ensure_ascii=False)
-
-    return {"intent_graph": intent_graph, "trace": trace}

@@ -5,6 +5,8 @@ Enrich Intent - T28 Skill Script
 
 Runs the enrichment engine on a semantic intent JSON to produce a full
 intent graph JSON (mechanically wired pins, suffix, corners, gate checks).
+Gate check results and ESD override info are printed to console instead of
+a separate trace JSON file.
 
 Usage:
     python enrich_intent.py <semantic_intent.json> <intent_graph.json> [tech_node]
@@ -16,7 +18,6 @@ Exit Codes:
     3 - Gate failure (read engine stderr; re-classify in semantic intent)
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -57,20 +58,14 @@ def main():
         sys.exit(2)
 
     wiring_path = skill_dir / "assets" / "device_info" / "device_wiring_T28.json"
-    trace_path = output_path.with_name(
-        output_path.stem.replace("intent_graph", "enrichment_trace") + ".json"
-    )
-    if trace_path == output_path:
-        trace_path = output_path.with_suffix(".trace.json")
 
     print(f"[>>] Enriching semantic intent...")
     print(f"   Input:    {semantic_path}")
     print(f"   Output:   {output_path}")
-    print(f"   Trace:    {trace_path}")
     print(f"   Wiring:   {wiring_path}")
 
     try:
-        result = enrich(semantic_path, wiring_path, output_path, trace_path)
+        result = enrich(semantic_path, wiring_path, output_path)
     except InputError as e:
         print("", file=sys.stderr)
         print(str(e), file=sys.stderr)
@@ -92,20 +87,43 @@ def main():
 
     n_pads = sum(1 for i in result["intent_graph"]["instances"] if i["type"] in ("pad", "inner_pad"))
     n_corners = sum(1 for i in result["intent_graph"]["instances"] if i["type"] == "corner")
-    duration = result["trace"]["duration_ms"]
-    warnings = result["trace"]["gates"]["G8_domain_continuity"].get("warnings", [])
+    duration = result["duration_ms"]
 
     print(f"")
     print(f"[OK] Enrichment complete in {duration}ms")
     print(f"   Pads: {n_pads}, Corners: {n_corners}")
-    if result["trace"]["esd_override_applied"]:
-        print(f"   Ring ESD override applied to {result['trace']['esd_pads_overridden']} pads")
-    if warnings:
+
+    # Print gate results
+    gates = result["gates"]
+    print(f"   Gates:")
+    for gate_id, gate_result in gates.items():
+        status = "PASS" if gate_result.get("pass") else "FAIL"
+        label = gate_id
+        extra = ""
+        if "skipped" in gate_result:
+            extra = f" (skipped: {gate_result['skipped']})"
+        elif "label" in gate_result:
+            extra = f" (VSS={gate_result['label']})"
+        elif "providers" in gate_result:
+            extra = f" (providers: {', '.join(gate_result['providers'])})"
+        elif "counts" in gate_result:
+            extra = f" ({gate_result['counts']})"
+        elif "esd_signal" in gate_result:
+            extra = f" (ESD={gate_result['esd_signal']})"
+        print(f"     {label}: {status}{extra}")
+
+    # Print G8 domain continuity warnings
+    g8_warnings = gates.get("G8_domain_continuity", {}).get("warnings", [])
+    if g8_warnings:
         print(f"   [WARN] Domain continuity:")
-        for w in warnings:
+        for w in g8_warnings:
             print(f"     - {w}")
+
+    # Print ESD override info
+    if result["esd_override_applied"]:
+        print(f"   Ring ESD override applied to {result['esd_pads_overridden']} pads")
+
     print(f"   Wrote: {output_path}")
-    print(f"   Trace: {trace_path}")
     sys.exit(0)
 
 

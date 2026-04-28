@@ -349,7 +349,7 @@ After deciding which signal is the provider for each domain, choose the device c
 
 ### 6.1 Invocation
 
-The engine consumes `io_ring_semantic_intent.json` (AI output) and produces `io_ring_intent_graph.json` (full pin-wired output) plus `io_ring_intent_graph.trace.json` (per-instance resolution log + gate results).
+The engine consumes `io_ring_semantic_intent.json` (AI output) and produces `io_ring_intent_graph.json` (full pin-wired output). Gate check results (G1-G10) and ESD override info are printed to console.
 
 ```bash
 $AMS_PYTHON $SCRIPTS_PATH/enrich_intent.py \
@@ -400,8 +400,53 @@ Use overrides sparingly — they are an escape hatch, not a default tool. If you
 | `[ENGINE-GATE] G3` provider count != 4 | More than 4 unique digital provider names | Re-classify suspect signals as analog (§5.1, §5.3) |
 | `[ENGINE-GATE] G4` VSS inconsistency | Pads have different VSS labels | Should not happen with correct semantic intent — may be an engine bug |
 | `[ENGINE-GATE] G8` domain continuity warning | An analog domain has multiple non-contiguous blocks | Verify each block has its own provider pair, or re-classify |
+| `[ENGINE-GATE] G9` provider not found or wrong device | Domain provider name missing from instances, or uses non-provider device | Add instance with provider name + correct device (§5.5, §5.6) |
+| `[ENGINE-GATE] G10` family inconsistency | AC provider with A consumer (or vice versa) in same domain | Change consumer device to match provider family (§5.6) |
 
 Each engine error message includes the position, device, hint, and a `See: enrichment_rules_T28.md §X.Y` pointer back to the relevant rule.
+
+---
+
+## 7. AI Self-Check (Run Before Writing semantic_intent.json)
+
+Before emitting `io_ring_semantic_intent.json`, verify every check below. If any fails, fix the classification and re-verify. This catches errors that would cause engine failures (exit 1/3) before you waste a round-trip.
+
+### 7.1 Domain-Instance Consistency
+
+| # | Check | What to verify | Engine gate |
+|---|-------|----------------|-------------|
+| SC1 | **Provider name exists** | Every `domains.<id>.vdd_provider` / `vss_provider` name appears as an instance `name` in `instances[]` | G9 |
+| SC2 | **Provider device is correct** | The instance named as provider in each analog domain uses a provider device (`PVDD3AC`/`PVSS3AC` or `PVDD3A`/`PVSS3A`), NOT a consumer or IO device | G9 |
+| SC3 | **Digital provider device matches role** | Instance named as `low_vdd` uses `PVDD1DGZ`; `low_vss` → `PVSS1DGZ`; `high_vdd` → `PVDD2POC`; `high_vss` → `PVSS2DGZ` | G9 |
+| SC4 | **Analog domain has both providers** | Each analog domain has both `vdd_provider` and `vss_provider` defined | (engine crash) |
+
+### 7.2 Device-Domain Consistency
+
+| # | Check | What to verify | Engine gate |
+|---|-------|----------------|-------------|
+| SC5 | **Analog devices in analog domains** | `PDB3AC`, `PVDD*AC`, `PVSS*AC`, `PVDD*A`, `PVSS*A`, `PVSS2A` must have `domain` pointing to an analog domain (`kind: "analog"`) | (engine crash) |
+| SC6 | **Digital devices in digital domains** | `PDDW16SDGZ`, `PRUW08SDGZ`, `PVDD1DGZ`, `PVSS1DGZ`, `PVDD2POC`, `PVSS2DGZ` must have `domain` pointing to a digital domain (`kind: "digital"`) | (engine crash) |
+
+### 7.3 Family Consistency
+
+| # | Check | What to verify | Engine gate |
+|---|-------|----------------|-------------|
+| SC7 | **No AC/A mixing within a domain** | If a domain's providers are `PVDD3AC`/`PVSS3AC`, all consumers in that domain must be `PVDD1AC`/`PVSS1AC` (NOT `*1A`). If providers are `PVDD3A`/`PVSS3A`, consumers must be `PVDD1A`/`PVSS1A` (NOT `*1AC`). | G10 |
+
+### 7.4 Completeness
+
+| # | Check | What to verify | Engine gate |
+|---|-------|----------------|-------------|
+| SC8 | **Digital provider count = 4** | Count unique signal names across `low_vdd`, `low_vss`, `high_vdd`, `high_vss` in all digital domains. Must be exactly 4. | G3 |
+| SC9 | **Digital IO has direction** | Every instance with `device: PDDW16SDGZ` or `PRUW08SDGZ` has `"direction": "input"` or `"output"`. No other device has `direction`. | G6 |
+| SC10 | **No suffix on device names** | No `device` field contains `_H_G` or `_V_G`. | G1 input |
+| SC11 | **No corners in instances** | No instance has `type: "corner"`. | G2 input |
+
+### 7.5 How to Run the Self-Check
+
+After drafting the semantic intent JSON in memory, walk through SC1–SC11 before writing the file. The checks are fast (just lookups against your own data). If you catch an error here, you save an engine round-trip and produce correct output faster.
+
+**The engine will still run G1–G10 as a safety net** — the self-check is not a replacement for engine gates, it's a pre-filter that catches the most common mistakes before they reach the engine.
 
 ---
 
@@ -412,11 +457,17 @@ Each engine error message includes the position, device, hint, and a `See: enric
 - [ ] Digital provider count = exactly 4 unique signal names (or no digital domain at all)
 - [ ] Digital signals form a contiguous block (with ring wrap)
 - [ ] Each analog voltage domain block has its own provider pair
-- [ ] Provider/consumer device family matches within domain (1AC↔3AC, 1A↔3A; no mixing)
-- [ ] Provider signals use power/ground devices (PVDD3AC/PVSS3AC or 3A variants), NOT IO devices, even if name suggests IO
+- [ ] Provider/consumer device family matches within domain (1AC↔3AC, 1A↔3A; no mixing) — G10
+- [ ] Provider signals use power/ground devices (PVDD3AC/PVSS3AC or 3A variants), NOT IO devices, even if name suggests IO — G9
 - [ ] Digital IO instances have `direction` field set; non-digital-IO instances do not
 - [ ] User-specified device hints from Draft Editor and explicit prompt constraints are respected
 - [ ] Ring ESD: if user-declared, `global.ring_esd` is set; ESD instances use `PVSS2A` in analog domains and `PVSS1DGZ` in digital blocks
+
+### AI Self-Check (§7 — run before writing semantic_intent.json)
+- [ ] SC1–SC4: Domain-instance consistency (provider names exist, correct devices)
+- [ ] SC5–SC6: Device-domain kind consistency (analog↔analog, digital↔digital)
+- [ ] SC7: No AC/A mixing within any domain
+- [ ] SC8–SC11: Completeness checks
 
 ### Semantic Intent Output (engine input contract)
 - [ ] No corner instances in `instances` (engine generates)
@@ -427,6 +478,6 @@ Each engine error message includes the position, device, hint, and a `See: enric
 - [ ] `global.vss_ground` set (default `"GIOL"` if no special override)
 
 ### Final Confirmation
-- [ ] Engine exits 0 (success)
-- [ ] Engine trace log shows no domain-continuity warnings, or warnings are intentional
+- [ ] Engine exits 0 (success, all G1–G10 pass)
+- [ ] Engine console output shows no domain-continuity warnings, or warnings are intentional
 - [ ] Step 4 `validate_intent.py` exits 0

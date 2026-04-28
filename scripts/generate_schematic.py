@@ -17,6 +17,7 @@ Exit Codes:
 
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -140,6 +141,11 @@ def main():
             output_path_obj.parent.mkdir(parents=True, exist_ok=True)
             if output_path_obj.suffix.lower() != ".il":
                 output_path_obj = output_path_obj.with_suffix(".il")
+            # Add timestamp to filename if not already present
+            stem = output_path_obj.stem
+            if not re.search(r'_\d{8}_\d{6}', stem):
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_path_obj = output_path_obj.with_name(f"{stem}_{ts}{output_path_obj.suffix}")
 
         # Generate schematic
         template_manager = DeviceTemplateManager()

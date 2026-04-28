@@ -160,7 +160,7 @@ $AMS_PYTHON $SCRIPTS_PATH/enrich_intent.py \
   T28
 ```
 
-- Exit 0 → engine wrote `io_ring_intent_graph.json` + `io_ring_intent_graph.trace.json`. Proceed to Step 4.
+- Exit 0 → engine wrote `io_ring_intent_graph.json`; gate results printed to console. Proceed to Step 4.
 - Exit 1 → semantic intent input error. Read engine stderr (it includes hint + section pointer), fix semantic intent, re-run.
 - Exit 2 → wiring/engine bug. Stop and report.
 - Exit 3 → gate failure (semantic mistake — usually misclassification). Read engine stderr for which gate failed and the suggested re-classification, fix semantic intent, re-run.
@@ -210,6 +210,9 @@ $AMS_PYTHON $SCRIPTS_PATH/generate_schematic.py {output_dir}/io_ring_confirmed.j
 $AMS_PYTHON $SCRIPTS_PATH/generate_layout.py    {output_dir}/io_ring_confirmed.json {output_dir}/io_ring_layout.il    T28
 ```
 
+The scripts automatically add a timestamp to the output filename (e.g. `io_ring_schematic_20260428_181744.il`).
+Use the **actual output path printed by each script** in subsequent steps.
+
 ### Step 7: Check Virtuoso Connection
 
 ```bash
@@ -220,9 +223,11 @@ $AMS_PYTHON $SCRIPTS_PATH/check_virtuoso_connection.py
 
 ### Step 8: Execute SKILL Scripts in Virtuoso
 
+Use the timestamped `.il` filenames printed by Step 6:
+
 ```bash
-$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_schematic.il {lib} {cell} {output_dir}/schematic_screenshot.png schematic
-$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_layout.il    {lib} {cell} {output_dir}/layout_screenshot.png    layout
+$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_schematic_<timestamp>.il {lib} {cell} {output_dir}/schematic_screenshot.png schematic
+$AMS_PYTHON $SCRIPTS_PATH/run_il_with_screenshot.py {output_dir}/io_ring_layout_<timestamp>.il    {lib} {cell} {output_dir}/layout_screenshot.png    layout
 ```
 
 ### Step 9: Run DRC
@@ -267,7 +272,7 @@ Structured summary:
 - [ ] Wizard callback: invoked ONLY during Step 2/3 when ambiguity detected; runs targeted questions per `references/wizard_T28.md` → `wizard_constraints`
 - [ ] Step 2: Draft intent graph generated/saved
 - [ ] Step 2b: Draft Editor opened/skipped per setting
-- [ ] Step 3: Semantic intent saved; engine produced full intent_graph + trace; all gates passed
+- [ ] Step 3: Semantic intent saved; engine produced full intent_graph; all gates passed (check console output)
 - [ ] Step 4: Validation Exit 0
 - [ ] Step 5: Confirmed config built (AMS_LAYOUT_EDITOR=on → ask user; off → skip)
 - [ ] Step 6: SKILL scripts generated

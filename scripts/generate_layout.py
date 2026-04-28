@@ -17,7 +17,9 @@ Exit Codes:
 
 import json
 import os
+import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Add assets to path for local imports
@@ -109,11 +111,16 @@ def main():
         # Resolve confirmed config path (auto-build if needed)
         config_path = _resolve_confirmed_config_path(config_path_obj, consume_confirmed_only=True)
 
-        # Ensure output path is .il
+        # Ensure output path is .il with timestamp to avoid duplicate files
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         if output_path_obj.suffix.lower() != ".il":
             output_path_obj = output_path_obj.with_suffix(".il")
+        # Add timestamp to filename if not already present
+        stem = output_path_obj.stem
+        if not re.search(r'_\d{8}_\d{6}', stem):
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path_obj = output_path_obj.with_name(f"{stem}_{ts}{output_path_obj.suffix}")
 
         # Load and convert config
         with open(config_path, "r", encoding="utf-8") as f:

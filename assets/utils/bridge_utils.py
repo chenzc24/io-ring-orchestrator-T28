@@ -5,7 +5,6 @@ import os
 import json
 import shlex
 import time
-import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -231,20 +230,6 @@ def _cleanup_remote_il_files() -> None:
         pass
 
 
-def _unique_remote_name(local_path: str) -> str:
-    """Generate a unique remote filename to avoid collisions across tasks.
-
-    Uses timestamp + short UUID so concurrent tasks never overwrite each other.
-    e.g. io_ring_schematic_20260425_224613_a1b2c3.il
-    """
-    p = Path(local_path)
-    stem = p.stem
-    suffix = p.suffix
-    ts = time.strftime("%Y%m%d_%H%M%S")
-    uid = uuid.uuid4().hex[:6]
-    return f"{stem}_{ts}_{uid}{suffix}"
-
-
 def _scp_upload(local_path: str, remote_path: str) -> bool:
     """Upload a file via scp with ControlMaster disabled.
 
@@ -289,26 +274,24 @@ def load_skill_file(file_path: str, timeout: int = 60) -> bool:
     # Fix B: Clean up stale .il files from previous tasks
     _cleanup_remote_il_files()
 
-    # Fix A: Use a unique remote filename so each task is isolated
+    # Upload the .il file directly — the generator already adds a timestamp
+    # to the filename, so no need for a separate timestamped local copy.
     src = Path(file_path).resolve()
-    unique_name = _unique_remote_name(file_path)
-    unique_path = src.parent / unique_name
-    unique_path.write_bytes(src.read_bytes())
 
     remote_dir = _get_remote_bridge_dir()
-    remote_file = f"{remote_dir}/{unique_name}"
+    remote_file = f"{remote_dir}/{src.name}"
 
     try:
         # Phase 1: Try daemon upload + load
         client = _get_client()
-        result = client.load_il(str(unique_path), timeout=timeout)
+        result = client.load_il(str(src), timeout=timeout)
         if getattr(result, "ok", False):
             return True
     except Exception:
         pass
 
     # Phase 2: Daemon upload failed — use scp fallback + direct load
-    if _scp_upload(str(unique_path), remote_file):
+    if _scp_upload(str(src), remote_file):
         try:
             client = _get_client()
             load_cmd = f'load("{remote_file}")'
