@@ -245,15 +245,14 @@ The four digital provider devices are mapped to user signals as follows:
 - **CRITICAL — Provider Pair Per Block**: Each contiguous block of a voltage domain MUST have its own provider pair (one VDD provider and one VSS provider within that block).
   - **Provider device choice**: `PVDD3AC`/`PVSS3AC` (default) or `PVDD3A`/`PVSS3A` (only if user explicitly specifies).
   - **Selection rule for multiple signals with identical names** within the same domain:
-    - **Default**: Select the first occurrence within that domain's range as provider; all other instances with the same name in that domain become consumers (consumer device family must match provider family — see below).
-    - **Different voltage domains, identical signal names**: Find the first occurrence within each domain's specific range separately; each domain identifies its provider independently.
+    - **Default — Same name in same domain uses same device**: If multiple signals in the same domain share the same name, ALL instances MUST use the same device. When that name is the domain's chosen provider name, ALL of those instances use the provider device (`PVDD3A`/`PVSS3A` or `PVDD3AC`/`PVSS3AC`); do NOT convert some instances to consumer devices, and do NOT restrict the domain to only one pair of provider devices. Example: in the same analog domain with two `VDDH` signals and the user requesting `PVDD3A`, BOTH must be assigned `PVDD3A` — do NOT convert one to `PVDD1A`.
+    - **Different voltage domains, identical signal names**: Each domain identifies its provider independently within its own specific range.
     - **User override**: If user explicitly requires multiple identical-name signals to all be providers, follow user spec.
   - **Each voltage domain** must have its own provider pair — cannot share providers across domains.
 
 - **Consumer device class** (analog power/ground signals NOT selected as providers):
-  - **If domain's provider pair is `PVDD3AC`/`PVSS3AC`** (default): consumers use `PVDD1AC`/`PVSS1AC`.
-  - **If domain's provider pair is `PVDD3A`/`PVSS3A`** (user-specified): consumers use `PVDD1A`/`PVSS1A`.
-  - **CRITICAL — Consumer family must match provider family within the same voltage domain**: `1AC` pairs with `3AC`; `1A` pairs with `3A`. Do NOT mix.
+  - **Default (empirical) pairing**: `PVDD3AC`/`PVSS3AC` providers → `PVDD1AC`/`PVSS1AC` consumers; `PVDD3A`/`PVSS3A` providers → `PVDD1A`/`PVSS1A` consumers.
+  - **User override allowed**: The 1AC↔3AC / 1A↔3A pairing is an empirical default, NOT a hard constraint. If the user explicitly requests a different combination within a domain (e.g., `PVDD3A` provider with `PVDD1AC` consumer, or any other mix), follow the user's spec exactly.
 
 - **CRITICAL — Provider vs Consumer Distinction**:
   - **Provider**: ONLY signals selected as the voltage domain's VDD or VSS provider → use `PVDD3AC`/`PVSS3AC` (or `3A` variants).
@@ -306,13 +305,12 @@ After deciding which signal is the provider for each domain, choose the device c
 - **Provider** (selected as voltage domain VDD or VSS provider):
   - **If user explicitly specifies `PVDD3A`/`PVSS3A`**: Use `PVDD3A`/`PVSS3A`.
   - **Otherwise**: Use `PVDD3AC`/`PVSS3AC`.
-  - **CRITICAL**: Each voltage domain MUST have exactly one PVSS3 provider and one PVDD3 provider (one provider pair).
-  - **Multiple provider instances with identical names allowed**: If user explicitly requires multiple identical-name signals to all be providers, all become providers.
+  - **CRITICAL**: Each voltage domain MUST have exactly one VDD provider name and one VSS provider name (one provider name pair). Multiple instances sharing the chosen provider name all use the same provider device — do NOT downgrade some to consumer devices (see §5.5 same-name rule).
+  - **Multiple provider instances with identical names allowed**: All instances in the same domain sharing the chosen provider name become provider-device instances. Example: two `VDDH` in one analog domain with user-requested `PVDD3A` → both use `PVDD3A`, NOT one `PVDD3A` + one `PVDD1A`.
 
 - **Consumer** (other analog power/ground signals in the same domain):
-  - Under a `PVDD3AC`/`PVSS3AC` provider pair: `PVDD1AC`/`PVSS1AC`.
-  - Under a `PVDD3A`/`PVSS3A` provider pair: `PVDD1A`/`PVSS1A`.
-  - **Consumer family must match provider family in the same domain** (1AC↔3AC, 1A↔3A); do NOT mix.
+  - **Default (empirical) pairing**: under a `PVDD3AC`/`PVSS3AC` provider pair → `PVDD1AC`/`PVSS1AC`; under a `PVDD3A`/`PVSS3A` provider pair → `PVDD1A`/`PVSS1A`.
+  - **User override allowed**: 1AC↔3AC / 1A↔3A matching is an empirical default, not a hard rule. If the user explicitly requests a mixed combination within a domain (e.g., `PVDD3A` provider with `PVDD1AC` consumer, or any other mix), follow the user's spec.
 
 (Pin connections — including the `_CORE` suffix on provider AVDD/AVSS pins, and which pin connects to which domain provider — are handled by the engine. Just pick the right `device` and the engine wires it correctly.)
 
@@ -401,7 +399,7 @@ Use overrides sparingly — they are an escape hatch, not a default tool. If you
 | `[ENGINE-GATE] G4` VSS inconsistency | Pads have different VSS labels | Should not happen with correct semantic intent — may be an engine bug |
 | `[ENGINE-GATE] G8` domain continuity warning | An analog domain has multiple non-contiguous blocks | Verify each block has its own provider pair, or re-classify |
 | `[ENGINE-GATE] G9` provider not found or wrong device | Domain provider name missing from instances, or uses non-provider device | Add instance with provider name + correct device (§5.5, §5.6) |
-| `[ENGINE-GATE] G10` family inconsistency | AC provider with A consumer (or vice versa) in same domain | Change consumer device to match provider family (§5.6) |
+| `[ENGINE-GATE] G10` family pairing warning | AC provider with A consumer (or vice versa) in same domain | Non-blocking warning. Default pairing is 1AC↔3AC, 1A↔3A. If the mix is user-specified, ignore the warning; otherwise change consumer to match provider family (§5.6). |
 
 Each engine error message includes the position, device, hint, and a `See: enrichment_rules_T28.md §X.Y` pointer back to the relevant rule.
 
@@ -431,7 +429,7 @@ Before emitting `io_ring_semantic_intent.json`, verify every check below. If any
 
 | # | Check | What to verify | Engine gate |
 |---|-------|----------------|-------------|
-| SC7 | **No AC/A mixing within a domain** | If a domain's providers are `PVDD3AC`/`PVSS3AC`, all consumers in that domain must be `PVDD1AC`/`PVSS1AC` (NOT `*1A`). If providers are `PVDD3A`/`PVSS3A`, consumers must be `PVDD1A`/`PVSS1A` (NOT `*1AC`). | G10 |
+| SC7 | **AC/A pairing default** | By empirical default: `PVDD3AC`/`PVSS3AC` providers → `PVDD1AC`/`PVSS1AC` consumers; `PVDD3A`/`PVSS3A` providers → `PVDD1A`/`PVSS1A` consumers. **User override allowed** — if the user explicitly requests a mixed combination (e.g., `PVDD3A` provider with `PVDD1AC` consumer), follow user spec. | G10 |
 
 ### 7.4 Completeness
 
@@ -457,7 +455,7 @@ After drafting the semantic intent JSON in memory, walk through SC1–SC11 befor
 - [ ] Digital provider count = exactly 4 unique signal names (or no digital domain at all)
 - [ ] Digital signals form a contiguous block (with ring wrap)
 - [ ] Each analog voltage domain block has its own provider pair
-- [ ] Provider/consumer device family matches within domain (1AC↔3AC, 1A↔3A; no mixing) — G10
+- [ ] Provider/consumer device family matches within domain by empirical default (1AC↔3AC, 1A↔3A) — G10. User override allowed: if user explicitly requests a mixed combination (e.g., 3A provider + 1AC consumer), follow user spec.
 - [ ] Provider signals use power/ground devices (PVDD3AC/PVSS3AC or 3A variants), NOT IO devices, even if name suggests IO — G9
 - [ ] Digital IO instances have `direction` field set; non-digital-IO instances do not
 - [ ] User-specified device hints from Draft Editor and explicit prompt constraints are respected

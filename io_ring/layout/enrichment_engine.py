@@ -795,8 +795,12 @@ def _check_provider_instances(semantic: Dict[str, Any], wiring: Dict[str, Any],
 
 def _check_family_consistency(semantic: Dict[str, Any], wiring: Dict[str, Any],
                               results: Dict[str, Any]) -> None:
-    """G10: Provider-consumer family consistency within each analog domain (no AC/A mixing)."""
-    devices = wiring["devices"]
+    """G10: Provider-consumer family pairing (1AC↔3AC, 1A↔3A) is an empirical default.
+
+    User can explicitly request mixed combinations (e.g., PVDD3A provider with
+    PVDD1AC consumer). This check surfaces mixing as a warning but does not
+    block engine execution — user override takes precedence.
+    """
     instances = semantic.get("instances", [])
     domains = semantic.get("domains", {})
 
@@ -806,6 +810,7 @@ def _check_family_consistency(semantic: Dict[str, Any], wiring: Dict[str, Any],
     a_provider_devices = {"PVDD3A", "PVSS3A"}
     a_consumer_devices = {"PVDD1A", "PVSS1A"}
 
+    warnings = []
     for domain_id, domain_spec in domains.items():
         if domain_spec.get("kind") != "analog":
             continue
@@ -818,29 +823,25 @@ def _check_family_consistency(semantic: Dict[str, Any], wiring: Dict[str, Any],
         has_ac_consumer = bool(domain_devices & ac_consumer_devices)
         has_a_consumer = bool(domain_devices & a_consumer_devices)
 
-        # Check: AC provider with A consumer (or vice versa)
+        # Surface AC/A mixing as a non-blocking warning (user override allowed).
         if has_ac_provider and has_a_consumer:
-            bad = domain_devices & a_consumer_devices
-            raise GateError(
-                f"G10: Domain '{domain_id}' mixes AC provider with A consumer devices",
-                detail=f"AC provider(s): {sorted(domain_devices & ac_provider_devices)}, "
-                       f"A consumer(s): {sorted(bad)}",
-                hint="Consumer family must match provider family within the same domain: "
-                     "use PVDD1AC/PVSS1AC (not PVDD1A/PVSS1A) under a PVDD3AC/PVSS3AC provider pair.",
-                section="§5.6 (Step 3.2 Provider/consumer device selection)",
+            bad = sorted(domain_devices & a_consumer_devices)
+            warnings.append(
+                f"G10: Domain '{domain_id}' mixes AC provider "
+                f"{sorted(domain_devices & ac_provider_devices)} with A consumer(s) {bad} "
+                f"— allowed if user-specified, otherwise prefer PVDD1AC/PVSS1AC under "
+                f"a PVDD3AC/PVSS3AC provider pair."
             )
         if has_a_provider and has_ac_consumer:
-            bad = domain_devices & ac_consumer_devices
-            raise GateError(
-                f"G10: Domain '{domain_id}' mixes A provider with AC consumer devices",
-                detail=f"A provider(s): {sorted(domain_devices & a_provider_devices)}, "
-                       f"AC consumer(s): {sorted(bad)}",
-                hint="Consumer family must match provider family within the same domain: "
-                     "use PVDD1A/PVSS1A (not PVDD1AC/PVSS1AC) under a PVDD3A/PVSS3A provider pair.",
-                section="§5.6 (Step 3.2 Provider/consumer device selection)",
+            bad = sorted(domain_devices & ac_consumer_devices)
+            warnings.append(
+                f"G10: Domain '{domain_id}' mixes A provider "
+                f"{sorted(domain_devices & a_provider_devices)} with AC consumer(s) {bad} "
+                f"— allowed if user-specified, otherwise prefer PVDD1A/PVSS1A under "
+                f"a PVDD3A/PVSS3A provider pair."
             )
 
-    results["G10_family_consistency"] = {"pass": True}
+    results["G10_family_consistency"] = {"pass": True, "warnings": warnings}
 
 
 def _strip_suffix(device: str) -> str:

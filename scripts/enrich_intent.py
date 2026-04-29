@@ -119,6 +119,13 @@ def main():
         for w in g8_warnings:
             print(f"     - {w}")
 
+    # Print G10 family consistency warnings (AC/A mixing — allowed under user override)
+    g10_warnings = gates.get("G10_family_consistency", {}).get("warnings", [])
+    if g10_warnings:
+        print(f"   [WARN] Family pairing (empirical default):")
+        for w in g10_warnings:
+            print(f"     - {w}")
+
     # Print ESD override info
     if result["esd_override_applied"]:
         print(f"   Ring ESD override applied to {result['esd_pads_overridden']} pads")

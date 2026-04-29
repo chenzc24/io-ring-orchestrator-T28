@@ -198,22 +198,22 @@ toolbar Add/Delete · Import/Export JSON · Confirm & Continue to proceed.
 
 ## T28 Device Reference
 
-| Signal type | Device | Notes |
-|---|---|---|
-| Analog IO | `PDB3AC` | Bidirectional analog pad |
-| Analog power provider | `PVDD3AC` / `PVSS3AC` | Default (TACVDD/TACVSS pins) |
-| Analog power provider (alt) | `PVDD3A` / `PVSS3A` | User-specified (TAVDD/TAVSS pins) |
-| Analog power consumer | `PVDD1AC` / `PVSS1AC` | Under 3AC provider |
-| Analog power consumer (alt) | `PVDD1A` / `PVSS1A` | Under 3A provider |
-| Ring ESD (analog) | `PVSS2A` | User-triggered; 3 pins: VSS + TAVSS + TAVDD |
-| Digital IO (default) | `PDDW16SDGZ` | 16-bit |
-| Digital IO (alt) | `PRUW08SDGZ` | 8-bit; user-specified |
-| Digital power (low VDD) | `PVDD1DGZ` | Standard digital power |
-| Digital ground (low VSS) | `PVSS1DGZ` | Standard digital ground |
-| Digital power (high VDD) | `PVDD2POC` | High-voltage digital power |
-| Digital ground (high VSS) | `PVSS2DGZ` | High-voltage digital ground |
-| Digital corner | `PCORNER_G` | Both adjacent pads digital |
-| Analog/mixed corner | `PCORNERA_G` | At least one adjacent pad analog |
+| Signal type | Device |
+|---|---|
+| Analog IO | `PDB3AC` |
+| Analog power provider | `PVDD3AC` / `PVSS3AC` |
+| Analog power provider (alt) | `PVDD3A` / `PVSS3A` |
+| Analog power consumer | `PVDD1AC` / `PVSS1AC` |
+| Analog power consumer (alt) | `PVDD1A` / `PVSS1A` |
+| Ring ESD (analog) | `PVSS2A` |
+| Digital IO (default) | `PDDW16SDGZ` |
+| Digital IO (alt) | `PRUW08SDGZ` |
+| Digital power (low VDD) | `PVDD1DGZ` |
+| Digital ground (low VSS) | `PVSS1DGZ` |
+| Digital power (high VDD) | `PVDD2POC` |
+| Digital ground (high VSS) | `PVSS2DGZ` |
+| Digital corner | `PCORNER_G` |
+| Analog/mixed corner | `PCORNERA_G` |
 
 ---
 
