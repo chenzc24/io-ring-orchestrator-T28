@@ -440,7 +440,7 @@ pre-filled with defaults — use the Edit tool to update only the `CDS_LIB_PATH_
 
 ---
 
-### Step 4 — Write `site_local.csh` ❓ → 🤖
+### Step 4 — Write `site_local.csh` ❓(Or keep default in THU servers group) → 🤖
 
 ```bash
 cp .claude/skills/io-ring-orchestrator-T28/calibre/site_local.csh.example \
