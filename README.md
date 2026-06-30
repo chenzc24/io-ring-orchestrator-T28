@@ -172,6 +172,18 @@ Edit `_local/site.yaml`:
 | `calibre` | `mgc_home`, `pdk_layermap_28`, `lvs_include_28`, optional `mentor_cshrc` |
 | `spectre` | `io_model_include`, `core_model_include`, `core_sections`, `lm_license_file`, `cds_lic_file` |
 
+Before the first DRC/LVS run on a new site, confirm the rule and library
+inputs match the actual PDK setup:
+
+- The T28 Calibre rule templates under
+  `skills/t28-ioring-generator/calibre/T28/` are site examples. Replace or
+  update them if your DRC/LVS/PEX decks differ.
+- `calibre.pdk_layermap_28` and `calibre.lvs_include_28` must point to the
+  site's T28 layer map and LVS source/include files.
+- `cadence.cds_lib_28` must define the IO device library and physical PAD
+  library used by `skills/t28-ioring-generator/io_ring/layout/config/lydevices_28.json`
+  (`tphn28hpcpgv18` and `PAD` by default).
+
 Validate:
 
 ```powershell

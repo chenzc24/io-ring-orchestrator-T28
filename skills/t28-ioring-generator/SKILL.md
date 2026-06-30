@@ -81,6 +81,9 @@ Required generator configuration:
 
 - `_local/site.yaml` at the repository root.
 - `~/.virtuoso-bridge/.env`, created by `virtuoso-bridge init`, for bridge connection values.
+- Confirm site-specific DRC/LVS/PEX rule assets under `calibre/T28/` match the actual PDK deck before verification.
+- Confirm `calibre.pdk_layermap_28` and `calibre.lvs_include_28` in `_local/site.yaml` match the actual T28 layer map and LVS source/include files.
+- Confirm `cadence.cds_lib_28` DEFINEs the IO device library and physical PAD library used by `io_ring/layout/config/lydevices_28.json` (`tphn28hpcpgv18` and `PAD` by default).
 
 Optional:
 

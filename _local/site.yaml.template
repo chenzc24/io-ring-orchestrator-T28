@@ -26,7 +26,9 @@ bridge:
   disable_control_master: true
 
 cadence:
-  # Remote Linux path to the T28 cds.lib.
+  # Remote Linux path to the T28 cds.lib. Confirm it DEFINEs the IO device
+  # library and physical PAD library used by lydevices_28.json
+  # (tphn28hpcpgv18 and PAD by default).
   cds_lib_28: /home/chenzc_intern25/TSMC28/llm_IO/cds.lib
   # Remote Cadence IC root used for si netlist export.
   ic_root: /home/cadence/ic618/IC618Hotfix4
@@ -40,7 +42,9 @@ calibre:
   mgc_home: /home/mentor/calibre/calibre2022/aoj_cal_2022.1_36.16
   # Optional cshrc sourced before Calibre runs.
   mentor_cshrc: /home/cshrc/.cshrc.mentor
-  # Remote T28 stream layer map and LVS include/source-added file.
+  # Remote T28 stream layer map and LVS include/source-added file. These are
+  # site-specific PDK files; replace them when your DRC/LVS setup differs from
+  # the example environment.
   pdk_layermap_28: /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/tsmcN28.layermap
   lvs_include_28: /home/process/tsmc28n/PDK_mmWave/iPDK_CRN28HPC+ULL_v1.8_2p2a_20190531/tsmcN28/../Calibre/lvs/source.added
 
